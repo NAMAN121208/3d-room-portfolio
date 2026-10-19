@@ -1,22 +1,28 @@
 // src/App.jsx
 // Phase 1 & 2: Project scaffolding, Lenis smooth scroll, and Isometric 3D Greybox Room
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls } from '@react-three/drei';
 import Lenis from 'lenis';
 
 import Room from './scene/Room';
 import Lights from './scene/Lights';
+import CameraRig from './scene/CameraRig';
+import { stops, scrollSectionVh, scrollHint } from './content';
+import { useReducedMotion } from './hooks/useReducedMotion';
 
 export default function App() {
+  const [scrollDriver, setScrollDriver] = useState(null);
+  const reducedMotion = useReducedMotion();
   // Initialize Lenis smooth scrolling (configured for Phase 1)
   useEffect(() => {
+    if (reducedMotion) { setScrollDriver(null); return; }
     const lenis = new Lenis({
       duration: 1.2,
       easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
       orientation: 'vertical',
       smoothWheel: true,
     });
+    setScrollDriver(lenis);
 
     let frameId;
     function raf(time) {
@@ -29,10 +35,11 @@ export default function App() {
       cancelAnimationFrame(frameId);
       lenis.destroy();
     };
-  }, []);
+  }, [reducedMotion]);
 
   return (
-    <div className="relative w-screen h-screen overflow-hidden bg-[#0a0d14] select-none">
+    <div className="relative w-full bg-[#0a0d14] select-none" style={{ height: `${100 + (stops.length - 1) * scrollSectionVh}vh` }}>
+      <div className="fixed inset-0">
       {/* 3D Canvas with Low-FOV Perspective for the Isometric Look */}
       <Canvas
         shadows
@@ -51,16 +58,9 @@ export default function App() {
         {/* Greybox Room with 7 Named Meshes */}
         <Room />
 
-        {/* Orbit Controls to allow inspecting the greybox room */}
-        <OrbitControls
-          target={[0, 1.4, 0]}
-          maxPolarAngle={Math.PI / 2.05} // Prevent camera going below floor
-          minDistance={6}
-          maxDistance={24}
-          enableDamping
-          dampingFactor={0.05}
-        />
+        <CameraRig lenis={scrollDriver} reducedMotion={reducedMotion} />
       </Canvas>
+      </div>
 
       {/* Subtle UI Overlay: Project Header and Named Objects Legend */}
       <div className="absolute top-5 left-5 pointer-events-none z-10 flex flex-col gap-2">
@@ -72,7 +72,7 @@ export default function App() {
             </h1>
           </div>
           <p className="text-xs text-slate-400 leading-relaxed">
-            Phase 1 & 2 complete. Drag to orbit, scroll to zoom.
+            {scrollHint}
           </p>
         </div>
 
