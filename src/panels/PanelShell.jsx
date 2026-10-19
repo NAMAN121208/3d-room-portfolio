@@ -1,6 +1,6 @@
 // src/panels/PanelShell.jsx
 // Shared animated modal container for 3D room object panels
-// Features: Framer Motion animation, Esc-to-close, full focus trap, accessibility, responsive sizing
+// Features: Framer Motion animation, synchronized zoom timing, Esc-to-close, full focus trap, accessibility
 
 import React, { useEffect, useRef } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
@@ -35,7 +35,7 @@ export default function PanelShell({
           modalRef.current.focus();
         }
       }
-    }, 50);
+    }, 240); // Aligns with the zoom glide delay
 
     return () => {
       clearTimeout(timer);
@@ -93,30 +93,56 @@ export default function PanelShell({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
-  // Motion variants with respect for prefers-reduced-motion
+  // Transition variants carefully timed to harmonize with the 3D camera zoom:
+  // Backdrop fades in after the camera begins gliding, and the panel floats up
+  // with a natural damped spring as the camera arrives at the object.
   const backdropVariants = {
     hidden: { opacity: 0 },
-    visible: { opacity: 1 },
+    visible: {
+      opacity: 1,
+      transition: {
+        duration: 0.3,
+        ease: 'easeOut',
+        delay: shouldReduceMotion ? 0 : 0.12,
+      },
+    },
+    exit: {
+      opacity: 0,
+      transition: {
+        duration: 0.18,
+        ease: 'easeIn',
+      },
+    },
   };
 
   const modalVariants = shouldReduceMotion
     ? {
         hidden: { opacity: 0 },
-        visible: { opacity: 1 },
+        visible: { opacity: 1, transition: { duration: 0.15 } },
+        exit: { opacity: 0, transition: { duration: 0.1 } },
       }
     : {
-        hidden: { opacity: 0, scale: 0.94, y: 24 },
+        hidden: { opacity: 0, scale: 0.92, y: 36 },
         visible: {
           opacity: 1,
           scale: 1,
           y: 0,
-          transition: { type: 'spring', damping: 26, stiffness: 320 },
+          transition: {
+            type: 'spring',
+            damping: 28,
+            stiffness: 280,
+            mass: 0.9,
+            delay: 0.22, // Allows visitor to appreciate the 3D camera zoom before panel appears
+          },
         },
         exit: {
           opacity: 0,
-          scale: 0.96,
-          y: 16,
-          transition: { duration: 0.18, ease: 'easeOut' },
+          scale: 0.95,
+          y: 20,
+          transition: {
+            duration: 0.16,
+            ease: [0.32, 0, 0.67, 0],
+          },
         },
       };
 
@@ -127,13 +153,13 @@ export default function PanelShell({
           className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 md:p-6 overflow-hidden pointer-events-auto"
           role="presentation"
         >
-          {/* Backdrop */}
+          {/* Backdrop with soft blur revealing the focused 3D item in the background */}
           <motion.div
-            className="absolute inset-0 bg-slate-950/75 backdrop-blur-md"
+            className="absolute inset-0 bg-slate-950/70 backdrop-blur-md"
             variants={backdropVariants}
             initial="hidden"
             animate="visible"
-            exit="hidden"
+            exit="exit"
             onClick={onClose}
             aria-hidden="true"
           />
@@ -149,10 +175,13 @@ export default function PanelShell({
             initial="hidden"
             animate="visible"
             exit="exit"
-            className="relative w-full sm:max-w-xl md:max-w-2xl max-h-[88vh] sm:max-h-[85vh] flex flex-col bg-slate-900/95 text-slate-100 rounded-t-3xl sm:rounded-2xl border border-slate-700/60 shadow-2xl shadow-black/80 overflow-hidden outline-none"
+            className="relative w-full sm:max-w-xl md:max-w-2xl max-h-[88vh] sm:max-h-[85vh] flex flex-col bg-slate-900/95 text-slate-100 rounded-t-3xl sm:rounded-2xl border border-slate-700/60 shadow-2xl shadow-black/90 overflow-hidden outline-none ring-1 ring-white/10"
           >
+            {/* Top Accent Gradient Bar */}
+            <div className="h-1 w-full bg-gradient-to-r from-amber-500/80 via-indigo-500/80 to-emerald-500/80" />
+
             {/* Cozy Warm Ambient Glow at Header */}
-            <div className="absolute -top-16 left-1/2 -translate-x-1/2 w-64 h-24 bg-amber-500/15 blur-3xl pointer-events-none rounded-full" />
+            <div className="absolute -top-16 left-1/2 -translate-x-1/2 w-72 h-28 bg-amber-500/15 blur-3xl pointer-events-none rounded-full" />
 
             {/* Header */}
             <div className="relative flex items-center justify-between px-6 pt-5 pb-4 border-b border-slate-800/80 bg-slate-900/60 z-10">
@@ -165,7 +194,7 @@ export default function PanelShell({
                     {title}
                   </h2>
                   {badge && (
-                    <span className="text-[11px] font-medium font-mono px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300">
+                    <span className="text-[11px] font-medium font-mono px-2.5 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300">
                       {badge}
                     </span>
                   )}
