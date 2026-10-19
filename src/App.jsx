@@ -1,5 +1,5 @@
 // src/App.jsx
-// Phase 4 (Branch 1): Click-to-zoom state machine integration with CameraRig and Room
+// Phase 4 (Branch 2): Connect static panels to the click-to-zoom state machine
 import React, { useEffect, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import Lenis from 'lenis';
@@ -10,6 +10,12 @@ import CameraRig from './scene/CameraRig';
 import { stops, scrollSectionVh, scrollHint } from './content';
 import { useReducedMotion } from './hooks/useReducedMotion';
 import { useClickToZoom } from './hooks/useClickToZoom';
+
+// Static panels from Phase 5
+import GamesPanel from './panels/GamesPanel';
+import SketchGallery from './panels/SketchGallery';
+import FootballPanel from './panels/FootballPanel';
+import ReadingPanel from './panels/ReadingPanel';
 
 export default function App() {
   const [scrollDriver, setScrollDriver] = useState(null);
@@ -44,7 +50,12 @@ export default function App() {
     };
   }, [reducedMotion]);
 
-  const activeStop = stops.find((s) => s.id === focusedId);
+  // Find the content entry corresponding to the focused object
+  const activeStop = stops.find(
+    (s) =>
+      s.id === focusedId ||
+      (s.meshName && s.meshName.toLowerCase() === focusedId?.toLowerCase())
+  );
 
   return (
     <div
@@ -67,7 +78,7 @@ export default function App() {
           {/* Room Lighting */}
           <Lights />
 
-          {/* Greybox Room with Hover & Click Handlers */}
+          {/* Greybox Room with Hover Highlights & Click Selection */}
           <Room
             onSelectObject={focus}
             hoveredObject={hoveredObject}
@@ -83,7 +94,40 @@ export default function App() {
         </Canvas>
       </div>
 
-      {/* Subtle UI Overlay: Project Header and Click-to-Zoom Controls */}
+      {/* Active Object Detail Panels */}
+      {focusedId === 'laptop' && (
+        <GamesPanel
+          isOpen={true}
+          onClose={unfocus}
+          data={activeStop}
+        />
+      )}
+
+      {focusedId === 'sketchbook' && (
+        <SketchGallery
+          isOpen={true}
+          onClose={unfocus}
+          data={activeStop}
+        />
+      )}
+
+      {(focusedId === 'football' || focusedId === 'jersey') && (
+        <FootballPanel
+          isOpen={true}
+          onClose={unfocus}
+          data={activeStop}
+        />
+      )}
+
+      {focusedId === 'bookshelf' && (
+        <ReadingPanel
+          isOpen={true}
+          onClose={unfocus}
+          data={activeStop}
+        />
+      )}
+
+      {/* Subtle UI Overlay: Project Header and Status */}
       <div className="absolute top-5 left-5 pointer-events-none z-10 flex flex-col gap-2">
         <div className="bg-slate-900/80 backdrop-blur-md border border-slate-700/60 rounded-xl px-4 py-3 shadow-2xl max-w-sm pointer-events-auto">
           <div className="flex items-center gap-2 mb-1">
@@ -99,7 +143,7 @@ export default function App() {
           <p className="text-xs text-slate-400 leading-relaxed">
             {isFocused
               ? 'Press Esc or click button to return to room overview.'
-              : 'Click any object to zoom in, or ' + scrollHint}
+              : 'Click any object to zoom in and open panel, or ' + scrollHint}
           </p>
           {isFocused && (
             <button
