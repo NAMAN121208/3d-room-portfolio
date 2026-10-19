@@ -1,6 +1,6 @@
 // src/dev/PanelPreview.jsx
-// Dev-only preview harness to test and inspect the portfolio panels without the 3D scene.
-// Allows testing opening, closing, Esc-to-close, focus trap, and mock data vs error fallback.
+// Dev-only preview harness to test and inspect the portfolio panels and UI components without the 3D scene.
+// Allows testing opening, closing, Esc-to-close, focus trap, mock data, Cursor, Loader, and TextReveal.
 
 import React, { useState } from 'react';
 import GithubPanel from '../panels/GithubPanel';
@@ -8,6 +8,9 @@ import GamesPanel from '../panels/GamesPanel';
 import SketchGallery from '../panels/SketchGallery';
 import FootballPanel from '../panels/FootballPanel';
 import ReadingPanel from '../panels/ReadingPanel';
+import Cursor from '../ui/Cursor';
+import Loader from '../ui/Loader';
+import TextReveal from '../ui/TextReveal';
 
 // Generate 40 weeks of realistic contribution counts for the heatmap preview
 function generateSampleWeeks() {
@@ -285,6 +288,8 @@ export const samplePanelData = {
 export default function PanelPreview() {
   const [activePanel, setActivePanel] = useState(null);
   const [useEmptyData, setUseEmptyData] = useState(false);
+  const [showLoaderDemo, setShowLoaderDemo] = useState(false);
+  const [revealKey, setRevealKey] = useState(0);
 
   // Fallback empty data to test empty states and API errors
   const emptyPanelData = {
@@ -355,37 +360,75 @@ export default function PanelPreview() {
     },
   ];
 
+  const handleTestLoader = () => {
+    setShowLoaderDemo(true);
+    setTimeout(() => {
+      setShowLoaderDemo(false);
+    }, 2200);
+  };
+
   return (
-    <div className="min-h-screen w-full bg-[#0b0f19] text-slate-100 p-6 md:p-12 font-sans flex flex-col items-center">
+    <div className="min-h-screen w-full bg-[#0b0f19] text-slate-100 p-6 md:p-12 font-sans flex flex-col items-center relative">
+      {/* Custom Interactive Cursor */}
+      <Cursor />
+
+      {/* 3D Scene Loader Demo Overlay */}
+      {showLoaderDemo && <Loader ready={false} minDuration={1800} onLoaded={() => setShowLoaderDemo(false)} />}
+
       {/* Dev Header */}
       <div className="w-full max-w-4xl mb-10 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-6">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />
             <span className="text-xs font-mono font-semibold uppercase tracking-wider text-amber-400">
-              Dev Mode Preview
+              Dev Mode Preview (Phase 9 Polish)
             </span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-100">
-            Portfolio Panels Preview
-          </h1>
+
+          {/* Reusable TextReveal in action */}
+          <TextReveal
+            key={revealKey}
+            text="Portfolio Panels & UI Polish Preview"
+            as="h1"
+            mode="words"
+            className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-100"
+          />
+
           <p className="text-xs sm:text-sm text-slate-400 mt-1">
-            Click any card to inspect animations, Esc-to-close, focus traps, and mock data.
+            Click any card to inspect animations, Esc-to-close, focus traps, custom cursor, and loader.
           </p>
         </div>
 
-        {/* Toggle Empty Data / Error Mode */}
-        <button
-          type="button"
-          onClick={() => setUseEmptyData(!useEmptyData)}
-          className={`shrink-0 px-3.5 py-2 rounded-xl text-xs font-medium border transition-colors ${
-            useEmptyData
-              ? 'bg-amber-500/20 border-amber-500/50 text-amber-300'
-              : 'bg-slate-800/80 border-slate-700 text-slate-300 hover:text-white'
-          }`}
-        >
-          {useEmptyData ? 'Mode: Error & Empty Fallbacks' : 'Mode: Sample Data (Active)'}
-        </button>
+        {/* Controls: Empty Data Toggle, Re-play Text Reveal, Test Loader */}
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setRevealKey((k) => k + 1)}
+            className="px-3 py-1.5 rounded-xl text-xs font-medium bg-slate-800/80 border border-slate-700 text-slate-300 hover:text-white transition-colors"
+          >
+            Replay Text Reveal ↺
+          </button>
+
+          <button
+            type="button"
+            onClick={handleTestLoader}
+            className="px-3 py-1.5 rounded-xl text-xs font-medium bg-indigo-500/20 border border-indigo-500/40 text-indigo-300 hover:bg-indigo-500/30 transition-colors"
+          >
+            Test 3D Loader ⏳
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setUseEmptyData(!useEmptyData)}
+            className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition-colors ${
+              useEmptyData
+                ? 'bg-amber-500/20 border-amber-500/50 text-amber-300'
+                : 'bg-slate-800/80 border-slate-700 text-slate-300 hover:text-white'
+            }`}
+          >
+            {useEmptyData ? 'Mode: Error & Fallbacks' : 'Mode: Sample Data'}
+          </button>
+        </div>
       </div>
 
       {/* Panels Selection Cards */}
@@ -394,6 +437,7 @@ export default function PanelPreview() {
           <div
             key={p.id}
             onClick={() => setActivePanel(p.id)}
+            data-cursor="Open"
             className={`p-6 rounded-2xl bg-gradient-to-br ${p.color} border hover:scale-[1.02] cursor-pointer transition-all duration-200 shadow-xl flex items-center justify-between group`}
           >
             <div className="flex items-center gap-4">
@@ -426,7 +470,15 @@ export default function PanelPreview() {
           isOpen={true}
           onClose={() => setActivePanel(null)}
           data={currentData.monitor}
-          githubData={useEmptyData ? { profile: { name: '', avatar: '', followers: 0, url: '' }, pinnedRepos: [], contributions: { total: 0, weeks: [] } } : sampleGithubData}
+          githubData={
+            useEmptyData
+              ? {
+                  profile: { name: '', avatar: '', followers: 0, url: '' },
+                  pinnedRepos: [],
+                  contributions: { total: 0, weeks: [] },
+                }
+              : sampleGithubData
+          }
         />
       )}
 
