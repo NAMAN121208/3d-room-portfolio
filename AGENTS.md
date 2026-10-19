@@ -224,10 +224,11 @@ Both tools write code in the same repo. **To avoid conflicts, each owns differen
 - Final code review of the other tool's work
 
 ### Shared rules
-- One git branch per task (`feat/camera-rig`, `feat/github-panel`). The owner merges.
+- One git branch per task (`feat/camera-rig`, `feat/github-panel`). Merge each completed and verified branch into `main` and push `main`, so the next task starts from the latest code. Fetch and update `main` before starting a new task branch.
 - Commit small and often with clear messages, so any step can be rolled back.
 - Do not do large refactors or rename files unprompted.
-- If a task needs a file owned by the other tool, stop and describe the needed change instead.
+- If you need to change a file you do not own, do not edit it; tell the owner instead. Include this instruction in any handoff to another tool.
+- If merge conflicts need the owner's review, send the list of conflicted files and describe the proposed resolutions before committing them.
 
 ---
 
