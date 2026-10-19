@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node --test tests/content-and-api.test.mjs"
+    "test": "node --test src/hooks/cameraPath.test.js tests/content-and-api.test.mjs tests/clickToZoom.test.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^10.0.8",

@@ -1,7 +1,7 @@
 // src/scene/Room.jsx
 // Phase 2: Isometric Greybox Room
 // Built from simple geometric primitives (boxes, cylinders, spheres).
-// Contains 7 SEPARATELY named interactive meshes:
+// Contains 7 SEPARATELY named interactive meshes with hover highlights and pointer events:
 // 1. "Monitor"
 // 2. "Laptop"
 // 3. "Sketchbook"
@@ -10,11 +10,29 @@
 // 6. "Jersey"
 // 7. "Bookshelf"
 //
-// These names match `stops` in `src/content.js` exactly for Codex's Phase 3 & 4 raycasting.
+// These names match `stops` in `src/content.js` exactly for raycasting and click-to-zoom.
 
 import React from 'react';
 
-export default function Room() {
+export default function Room({ onSelectObject, hoveredObject, onHoverObject }) {
+  // Helper to attach pointer cursor and click handling to interactive targets
+  const getInteractiveProps = (id) => ({
+    onPointerOver: (e) => {
+      e.stopPropagation();
+      onHoverObject?.(id);
+      document.body.style.cursor = 'pointer';
+    },
+    onPointerOut: (e) => {
+      e.stopPropagation();
+      onHoverObject?.(null);
+      document.body.style.cursor = 'auto';
+    },
+    onClick: (e) => {
+      e.stopPropagation();
+      onSelectObject?.(id);
+    },
+  });
+
   return (
     <group position={[0, 0, 0]}>
       {/* ========================================================= */}
@@ -107,14 +125,31 @@ export default function Room() {
       {/* ========================================================= */}
       <group position={[0, 1.55, -3.2]}>
         {/* Monitor Screen - Primary Clickable Target */}
-        <mesh name="Monitor" position={[0, 0.75, 0]} castShadow receiveShadow>
+        <mesh
+          name="Monitor"
+          position={[0, 0.75, 0]}
+          castShadow
+          receiveShadow
+          {...getInteractiveProps('monitor')}
+        >
           <boxGeometry args={[1.8, 1.1, 0.08]} />
-          <meshStandardMaterial color="#09090b" roughness={0.3} metalness={0.5} />
+          <meshStandardMaterial
+            color="#09090b"
+            roughness={0.3}
+            metalness={0.5}
+            emissive={hoveredObject === 'monitor' ? '#6366f1' : '#000000'}
+            emissiveIntensity={hoveredObject === 'monitor' ? 0.35 : 0}
+          />
         </mesh>
-        {/* Display Panel Inset (subtle blue glow / code screen preview) */}
+        {/* Display Panel Inset */}
         <mesh position={[0, 0.75, 0.045]}>
           <planeGeometry args={[1.68, 0.98]} />
-          <meshStandardMaterial color="#0f172a" roughness={0.2} emissive="#1e1b4b" emissiveIntensity={0.3} />
+          <meshStandardMaterial
+            color="#0f172a"
+            roughness={0.2}
+            emissive="#1e1b4b"
+            emissiveIntensity={0.3}
+          />
         </mesh>
         {/* Monitor Stand Vertical Stem */}
         <mesh position={[0, 0.3, -0.05]} castShadow>
@@ -133,9 +168,21 @@ export default function Room() {
       {/* ========================================================= */}
       <group position={[1.4, 1.55, -2.6]} rotation={[0, -0.25, 0]}>
         {/* Laptop Base Body - Primary Clickable Target */}
-        <mesh name="Laptop" position={[0, 0.02, 0]} castShadow receiveShadow>
+        <mesh
+          name="Laptop"
+          position={[0, 0.02, 0]}
+          castShadow
+          receiveShadow
+          {...getInteractiveProps('laptop')}
+        >
           <boxGeometry args={[0.7, 0.03, 0.5]} />
-          <meshStandardMaterial color="#a1a1aa" metalness={0.8} roughness={0.25} />
+          <meshStandardMaterial
+            color="#a1a1aa"
+            metalness={0.8}
+            roughness={0.25}
+            emissive={hoveredObject === 'laptop' ? '#38bdf8' : '#000000'}
+            emissiveIntensity={hoveredObject === 'laptop' ? 0.4 : 0}
+          />
         </mesh>
         {/* Keyboard Inset */}
         <mesh position={[0, 0.036, 0.05]}>
@@ -160,9 +207,20 @@ export default function Room() {
       {/* ========================================================= */}
       <group position={[-1.3, 1.55, -2.5]} rotation={[0, 0.2, 0]}>
         {/* Sketchbook Cover & Block - Primary Clickable Target */}
-        <mesh name="Sketchbook" position={[0, 0.02, 0]} castShadow receiveShadow>
+        <mesh
+          name="Sketchbook"
+          position={[0, 0.02, 0]}
+          castShadow
+          receiveShadow
+          {...getInteractiveProps('sketchbook')}
+        >
           <boxGeometry args={[0.6, 0.04, 0.8]} />
-          <meshStandardMaterial color="#78350f" roughness={0.7} />
+          <meshStandardMaterial
+            color="#78350f"
+            roughness={0.7}
+            emissive={hoveredObject === 'sketchbook' ? '#f59e0b' : '#000000'}
+            emissiveIntensity={hoveredObject === 'sketchbook' ? 0.35 : 0}
+          />
         </mesh>
         {/* Paper Pages Inset */}
         <mesh position={[0.02, 0.042, 0]}>
@@ -191,9 +249,21 @@ export default function Room() {
           <meshStandardMaterial color="#3f3f46" metalness={0.8} />
         </mesh>
         {/* Headphones Headband Arc - Primary Clickable Target */}
-        <mesh name="Headphones" position={[0, 0.62, 0]} castShadow receiveShadow>
+        <mesh
+          name="Headphones"
+          position={[0, 0.62, 0]}
+          castShadow
+          receiveShadow
+          {...getInteractiveProps('headphones')}
+        >
           <torusGeometry args={[0.16, 0.025, 12, 24, Math.PI]} rotation={[0, 0, 0]} />
-          <meshStandardMaterial color="#4f46e5" metalness={0.4} roughness={0.3} />
+          <meshStandardMaterial
+            color="#4f46e5"
+            metalness={0.4}
+            roughness={0.3}
+            emissive={hoveredObject === 'headphones' ? '#818cf8' : '#000000'}
+            emissiveIntensity={hoveredObject === 'headphones' ? 0.4 : 0}
+          />
         </mesh>
         {/* Left Ear Cushion */}
         <mesh position={[-0.16, 0.55, 0]} castShadow>
@@ -212,9 +282,20 @@ export default function Room() {
       {/* ========================================================= */}
       <group position={[-4.3, 0, -1.0]}>
         {/* Outer Wooden Bookshelf Frame - Primary Clickable Target */}
-        <mesh name="Bookshelf" position={[0, 2.1, 0]} castShadow receiveShadow>
+        <mesh
+          name="Bookshelf"
+          position={[0, 2.1, 0]}
+          castShadow
+          receiveShadow
+          {...getInteractiveProps('bookshelf')}
+        >
           <boxGeometry args={[0.8, 4.2, 2.2]} />
-          <meshStandardMaterial color="#451a03" roughness={0.6} />
+          <meshStandardMaterial
+            color="#451a03"
+            roughness={0.6}
+            emissive={hoveredObject === 'bookshelf' ? '#d97706' : '#000000'}
+            emissiveIntensity={hoveredObject === 'bookshelf' ? 0.25 : 0}
+          />
         </mesh>
 
         {/* Shelving Inset Compartment (hollow interior) */}
@@ -238,7 +319,6 @@ export default function Room() {
         </mesh>
 
         {/* Decorative Books on Shelves */}
-        {/* Shelf 1 books */}
         <mesh position={[0.05, 1.4, -0.6]} castShadow>
           <boxGeometry args={[0.45, 0.55, 0.12]} />
           <meshStandardMaterial color="#ef4444" roughness={0.5} />
@@ -256,7 +336,6 @@ export default function Room() {
           <meshStandardMaterial color="#f59e0b" roughness={0.5} />
         </mesh>
 
-        {/* Shelf 2 books */}
         <mesh position={[0.05, 2.38, 0.2]} castShadow>
           <boxGeometry args={[0.45, 0.5, 0.2]} />
           <meshStandardMaterial color="#8b5cf6" roughness={0.5} />
@@ -282,9 +361,19 @@ export default function Room() {
           <meshStandardMaterial color="#d4af37" metalness={0.8} roughness={0.3} />
         </mesh>
         {/* Jersey Main Body - Primary Clickable Target */}
-        <mesh name="Jersey" position={[0, -0.1, 0.03]} castShadow>
+        <mesh
+          name="Jersey"
+          position={[0, -0.1, 0.03]}
+          castShadow
+          {...getInteractiveProps('jersey')}
+        >
           <boxGeometry args={[0.9, 1.1, 0.04]} />
-          <meshStandardMaterial color="#dc2626" roughness={0.6} />
+          <meshStandardMaterial
+            color="#dc2626"
+            roughness={0.6}
+            emissive={hoveredObject === 'jersey' ? '#ef4444' : '#000000'}
+            emissiveIntensity={hoveredObject === 'jersey' ? 0.35 : 0}
+          />
         </mesh>
         {/* Left Sleeve */}
         <mesh position={[-0.56, 0.28, 0.03]} rotation={[0, 0, -0.45]} castShadow>
@@ -312,9 +401,21 @@ export default function Room() {
       {/* ========================================================= */}
       <group position={[2.6, 0, 1.6]}>
         {/* Football Sphere - Primary Clickable Target */}
-        <mesh name="Football" position={[0, 0.35, 0]} castShadow receiveShadow>
+        <mesh
+          name="Football"
+          position={[0, 0.35, 0]}
+          castShadow
+          receiveShadow
+          {...getInteractiveProps('football')}
+        >
           <sphereGeometry args={[0.35, 32, 32]} />
-          <meshStandardMaterial color="#f8fafc" roughness={0.35} metalness={0.1} />
+          <meshStandardMaterial
+            color="#f8fafc"
+            roughness={0.35}
+            metalness={0.1}
+            emissive={hoveredObject === 'football' ? '#10b981' : '#000000'}
+            emissiveIntensity={hoveredObject === 'football' ? 0.35 : 0}
+          />
         </mesh>
 
         {/* Stylized Football Boots resting next to the ball */}
