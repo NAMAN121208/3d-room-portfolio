@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Phase 8A: Room Model Preview</title>
+  <title>Phase 8: Props Integration Preview</title>
   <style>
     body {
       margin: 0;
@@ -26,7 +26,7 @@
       border: 1px solid rgba(148, 163, 184, 0.25);
       border-radius: 12px;
       padding: 16px 20px;
-      max-width: 400px;
+      max-width: 420px;
       pointer-events: auto;
       box-shadow: 0 12px 30px rgba(0,0,0,0.6);
     }
@@ -59,11 +59,9 @@
       border-radius: 4px;
       font-size: 11px;
       font-weight: 600;
-      letter-spacing: 0.3px;
     }
-    .badge-name { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.5); }
-    .badge-keep { background: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.5); }
-    .badge-decor { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.5); }
+    .badge-prop { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.5); }
+    .badge-room { background: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.5); }
 
     #tooltip {
       position: absolute;
@@ -90,72 +88,24 @@
       align-items: center;
       gap: 6px;
     }
-
-    #legend {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      font-size: 12px;
-      border-top: 1px solid rgba(148, 163, 184, 0.15);
-      padding-top: 10px;
-    }
-    .legend-item {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .legend-color {
-      width: 12px;
-      height: 12px;
-      border-radius: 3px;
-    }
-    .stat-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      background: rgba(30, 41, 59, 0.8);
-      border: 1px solid rgba(148, 163, 184, 0.2);
-      padding: 3px 8px;
-      border-radius: 6px;
-      font-size: 11px;
-      color: #cbd5e1;
-      font-family: monospace;
-      margin-right: 6px;
-      margin-bottom: 8px;
-    }
   </style>
 </head>
 <body>
   <div id="canvas-container"></div>
 
   <div id="hud">
-    <h2><span class="status-dot"></span> Phase 8A: Prepared Model</h2>
-    <p>Cleaned model: bottles, glasses, slippers, and clutter removed; target groups named.</p>
-    
-    <div>
-      <span class="stat-pill">Size: 5.73 MB (-25.2%)</span>
-      <span class="stat-pill">Nodes: 237 (-55)</span>
-      <span class="stat-pill">Meshes: 144 (-35)</span>
-    </div>
-
-    <div id="legend">
-      <div class="legend-item">
-        <div class="legend-color" style="background: #10b981;"></div>
-        <span>Target Named Groups (Monitor, Laptop, Bookshelf)</span>
-      </div>
-      <div class="legend-item">
-        <div class="legend-color" style="background: #fbbf24;"></div>
-        <span>Special Items (Wall Clock, Wall Lamps, Side Table)</span>
-      </div>
-      <div class="legend-item">
-        <div class="legend-color" style="background: #60a5fa;"></div>
-        <span>Retained Furniture / Architecture</span>
-      </div>
+    <h2><span class="status-dot"></span> Phase 8: Props Integration</h2>
+    <p>Room with loaded prop models: Sketchbook, Headphones, Football cleats, and Jersey.</p>
+    <div id="props-list" style="font-size:11px; font-family:monospace; color:#cbd5e1; display:flex; flex-direction:column; gap:4px;">
+      <div>• Sketchbook: On desk [1.4, 1.25, -2.1]</div>
+      <div>• Headphones: On desk [-0.15, 1.25, -2.0]</div>
+      <div>• Football: On floor near door [1.95, 0.20, -2.4]</div>
+      <div>• Jersey: Framed on wall [2.4, 2.4, -2.9]</div>
     </div>
   </div>
 
   <div id="tooltip">
-    <div class="title" id="tt-title">Node Name</div>
+    <div class="title" id="tt-title">Object Name</div>
     <div class="detail" id="tt-detail"></div>
   </div>
 
@@ -173,14 +123,14 @@
     scene.background = new THREE.Color('#0a0d14');
 
     const camera = new THREE.PerspectiveCamera(32, window.innerWidth / window.innerHeight, 0.1, 100);
-    // Isometric vantage point
+    // Isometric angle
     camera.position.set(8.5, 7.0, 8.5);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, preserveDrawingBuffer: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.2;
+    renderer.toneMappingExposure = 1.25;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     container.appendChild(renderer.domElement);
@@ -190,11 +140,11 @@
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
 
-    // Lighting
-    const ambientLight = new THREE.AmbientLight('#fff7ed', 0.9);
+    // Lighting matching Lights.jsx
+    const ambientLight = new THREE.AmbientLight('#fff7ed', 0.95);
     scene.add(ambientLight);
 
-    const hemiLight = new THREE.HemisphereLight('#e0e7ff', '#78350f', 0.4);
+    const hemiLight = new THREE.HemisphereLight('#e0e7ff', '#78350f', 0.45);
     scene.add(hemiLight);
 
     const keyLight = new THREE.DirectionalLight('#fffbeb', 1.8);
@@ -209,50 +159,98 @@
     fillLight.position.set(-8, 7, -6);
     scene.add(fillLight);
 
-    let modelRoot = null;
-    let allMeshes = [];
-
-    const specialItems = {
-      'Circle_16': 'Wall Clock (Analog clock with hands & numbers)',
-      'Cylinder031_41': 'Wall Lamp (Back wall modern cylindrical sconce)',
-      'Cylinder033_42': 'Wall Lamp (Left wall modern cylindrical sconce)',
-      'Cube023_31': 'Side Table Device (Smartphone / tablet with black glass)',
-      'Cube001_35': 'Side Table Notepad (Journal / notebook)',
-      'Cylinder029_36': 'Side Table Coaster (Small coaster / disc)',
-      'Cube004_3': 'Monitor (Wallpaper decoration monitor)',
-      'Cube030_45': 'Coffee Table Glass Top (Preserved)',
-      'Cube025_39': 'PC Case Side Window (Preserved)'
-    };
+    const accentLight = new THREE.PointLight('#f59e0b', 1.2, 8.5, 2);
+    accentLight.position.set(-0.5, 2.8, -2.4);
+    scene.add(accentLight);
 
     const loader = new GLTFLoader();
-    loader.load('/models/room.glb', (gltf) => {
-      modelRoot = gltf.scene;
-      scene.add(modelRoot);
+    const allMeshes = [];
 
-      modelRoot.traverse((child) => {
+    function setupMeshes(rootObj, groupName, isProp = false) {
+      rootObj.traverse((child) => {
         if (child.isMesh) {
           child.castShadow = true;
           child.receiveShadow = true;
+          child.userData.groupName = groupName;
+          child.userData.isProp = isProp;
           allMeshes.push(child);
-
-          // Find its top-level parent under GLTF_SceneRootNode
-          let curr = child;
-          let topNode = curr;
-          while (curr.parent && curr.parent.name !== 'GLTF_SceneRootNode' && curr.parent !== modelRoot) {
-            curr = curr.parent;
-            if (curr.parent && (curr.parent.name === 'GLTF_SceneRootNode' || curr.parent === modelRoot)) {
-              topNode = curr;
-              break;
-            }
-          }
-          child.userData.topNode = topNode;
         }
       });
+    }
 
-      console.log('Processed room.glb loaded successfully. Total meshes:', allMeshes.length);
-      window.__ROOM_READY__ = true;
-    }, undefined, (err) => {
-      console.error('Error loading /models/room.glb:', err);
+    // 1. Room model
+    loader.load('/models/room.glb', (gltf) => {
+      scene.add(gltf.scene);
+      setupMeshes(gltf.scene, 'Room');
+      console.log('Room loaded');
+    });
+
+    // 2. Sketchbook: on desk at [1.4, 1.25, -2.1]
+    loader.load('/models/props/sketchbook.glb', (gltf) => {
+      const group = new THREE.Group();
+      group.name = 'Sketchbook';
+      group.position.set(1.4, 1.25, -2.1);
+      group.rotation.set(0, -0.25, 0);
+
+      // Offset and scale so bottom sits flush at y=0, centered in X and Z
+      const model = gltf.scene;
+      model.scale.set(0.00055, 0.00055, 0.00055);
+      model.position.set(0.042, 0.003, -0.166);
+
+      group.add(model);
+      scene.add(group);
+      setupMeshes(group, 'Sketchbook', true);
+      console.log('Sketchbook loaded');
+    });
+
+    // 3. Headphones: on desk at [-0.15, 1.25, -2.0]
+    loader.load('/models/props/headphones.glb', (gltf) => {
+      const group = new THREE.Group();
+      group.name = 'Headphones';
+      group.position.set(-0.15, 1.25, -2.0);
+      group.rotation.set(0, 0.5, 0);
+
+      const model = gltf.scene;
+      model.scale.set(0.025, 0.025, 0.025);
+      model.position.set(0, 0.114, 0);
+
+      group.add(model);
+      scene.add(group);
+      setupMeshes(group, 'Headphones', true);
+      console.log('Headphones loaded');
+    });
+
+    // 4. Football cleats: on floor near door at [1.95, 0.20, -2.4]
+    loader.load('/models/props/football.glb', (gltf) => {
+      const group = new THREE.Group();
+      group.name = 'Football';
+      group.position.set(1.95, 0.20, -2.4);
+      group.rotation.set(0, -0.6, 0);
+
+      const model = gltf.scene;
+      model.scale.set(1.1, 1.1, 1.1);
+      // Center and sit flush on floor
+      model.position.set(0.03, 0.023, -0.078);
+
+      group.add(model);
+      scene.add(group);
+      setupMeshes(group, 'Football', true);
+      console.log('Football cleats loaded');
+    });
+
+    // 5. Jersey: framed on wall at [2.4, 2.4, -2.9]
+    loader.load('/models/props/jersey.glb', (gltf) => {
+      const group = new THREE.Group();
+      group.name = 'Jersey';
+      group.position.set(2.4, 2.4, -2.9);
+      group.rotation.set(0, 0, 0);
+
+      const model = gltf.scene;
+      model.scale.set(0.85, 0.85, 0.85);
+      group.add(model);
+      scene.add(group);
+      setupMeshes(group, 'Jersey', true);
+      console.log('Jersey loaded');
     });
 
     const raycaster = new THREE.Raycaster();
@@ -267,25 +265,11 @@
 
       if (intersects.length > 0) {
         const hit = intersects[0].object;
-        const topNode = hit.userData.topNode || hit;
-        const nodeName = topNode.name;
+        const gName = hit.userData.groupName || hit.name;
+        const isProp = hit.userData.isProp;
 
-        let category = 'Room Architecture / Furniture';
-        let badgeClass = 'badge-keep';
-        let detailText = `Child of ${topNode.name}`;
-
-        if (nodeName === 'Monitor' || nodeName === 'Laptop' || nodeName === 'Bookshelf') {
-          category = `Named Group: ${nodeName}`;
-          badgeClass = 'badge-name';
-          detailText = `Mesh: ${hit.name}`;
-        } else if (specialItems[nodeName]) {
-          category = specialItems[nodeName];
-          badgeClass = 'badge-decor';
-          detailText = `Node: ${nodeName}`;
-        }
-
-        ttTitle.textContent = `${nodeName}`;
-        ttDetail.innerHTML = `<span class="badge ${badgeClass}">${category}</span> <span style="color:#94a3b8;font-size:11px;">${detailText}</span>`;
+        ttTitle.textContent = `${gName}`;
+        ttDetail.innerHTML = `<span class="badge ${isProp ? 'badge-prop' : 'badge-room'}">${isProp ? 'Interactive Prop' : 'Room Geometry'}</span> <span style="color:#94a3b8;font-size:11px;">Mesh: ${hit.name}</span>`;
         tooltip.style.display = 'block';
         tooltip.style.left = e.clientX + 'px';
         tooltip.style.top = e.clientY + 'px';

@@ -1,21 +1,45 @@
 // src/scene/Room.jsx
-// Phase 2: Isometric Greybox Room
-// Built from simple geometric primitives (boxes, cylinders, spheres).
-// Contains 7 SEPARATELY named interactive meshes with hover highlights and pointer events:
-// 1. "Monitor"
-// 2. "Laptop"
-// 3. "Sketchbook"
-// 4. "Headphones"
-// 5. "Football"
-// 6. "Jersey"
-// 7. "Bookshelf"
+// Phase 8: Real 3D Room & Props Integration
+// - Loads public/models/room.glb (prepared room environment)
+// - Loads real prop models from public/models/props/:
+//   1. Football (cleats near door on floor)
+//   2. Headphones (on desk)
+//   3. Sketchbook (on desk)
+//   4. Jersey (framed on wall)
 //
-// These names match `stops` in `src/content.js` exactly for raycasting and click-to-zoom.
+// Wrapped in groups named exactly: Monitor, Laptop, Bookshelf, Football, Headphones, Sketchbook, Jersey
+// These names match `stops` in `src/content.js` for raycasting and click-to-zoom.
 
-import React from 'react';
+import React, { useEffect, useMemo } from 'react';
+import { useGLTF } from '@react-three/drei';
 
 export default function Room({ onSelectObject, hoveredObject, onHoverObject }) {
-  // Helper to attach pointer cursor and click handling to interactive targets
+  // Load room model and prop models
+  const { scene: roomScene } = useGLTF('/models/room.glb');
+  const { scene: footballRaw } = useGLTF('/models/props/football.glb');
+  const { scene: headphonesRaw } = useGLTF('/models/props/headphones.glb');
+  const { scene: sketchbookRaw } = useGLTF('/models/props/sketchbook.glb');
+  const { scene: jerseyRaw } = useGLTF('/models/props/jersey.glb');
+
+  // Clone scenes so each instance retains independent transforms and state
+  const footballScene = useMemo(() => footballRaw.clone(true), [footballRaw]);
+  const headphonesScene = useMemo(() => headphonesRaw.clone(true), [headphonesRaw]);
+  const sketchbookScene = useMemo(() => sketchbookRaw.clone(true), [sketchbookRaw]);
+  const jerseyScene = useMemo(() => jerseyRaw.clone(true), [jerseyRaw]);
+
+  // Enable shadow casting and receiving across all meshes in the scene
+  useEffect(() => {
+    [roomScene, footballScene, headphonesScene, sketchbookScene, jerseyScene].forEach((scene) => {
+      scene?.traverse((child) => {
+        if (child.isMesh) {
+          child.castShadow = true;
+          child.receiveShadow = true;
+        }
+      });
+    });
+  }, [roomScene, footballScene, headphonesScene, sketchbookScene, jerseyScene]);
+
+  // Helper to attach pointer cursor and click handling to interactive prop targets
   const getInteractiveProps = (id) => ({
     onPointerOver: (e) => {
       e.stopPropagation();
@@ -33,401 +57,111 @@ export default function Room({ onSelectObject, hoveredObject, onHoverObject }) {
     },
   });
 
+  // Handle pointer interactions on the room model's embedded groups (Monitor, Laptop, Bookshelf)
+  const handleRoomPointerOver = (e) => {
+    e.stopPropagation();
+    let curr = e.object;
+    while (curr && curr !== roomScene) {
+      const lower = curr.name?.toLowerCase();
+      if (lower === 'monitor' || lower === 'laptop' || lower === 'bookshelf') {
+        onHoverObject?.(lower);
+        document.body.style.cursor = 'pointer';
+        return;
+      }
+      curr = curr.parent;
+    }
+  };
+
+  const handleRoomPointerOut = (e) => {
+    e.stopPropagation();
+    onHoverObject?.(null);
+    document.body.style.cursor = 'auto';
+  };
+
+  const handleRoomClick = (e) => {
+    e.stopPropagation();
+    let curr = e.object;
+    while (curr && curr !== roomScene) {
+      const lower = curr.name?.toLowerCase();
+      if (lower === 'monitor' || lower === 'laptop' || lower === 'bookshelf') {
+        onSelectObject?.(lower);
+        return;
+      }
+      curr = curr.parent;
+    }
+  };
+
   return (
     <group position={[0, 0, 0]}>
-      {/* ========================================================= */}
-      {/* 1. ROOM ARCHITECTURE (Floor & Two Walls for Isometric View) */}
-      {/* ========================================================= */}
+      {/* 1. ROOM MODEL (contains architecture, desk, sofa, TV, and named groups Monitor, Laptop, Bookshelf) */}
+      <primitive
+        object={roomScene}
+        onPointerOver={handleRoomPointerOver}
+        onPointerOut={handleRoomPointerOut}
+        onClick={handleRoomClick}
+      />
 
-      {/* Main Floor: y top surface is at y = 0 */}
-      <mesh position={[0, -0.15, 0]} receiveShadow>
-        <boxGeometry args={[10, 0.3, 10]} />
-        <meshStandardMaterial color="#1e293b" roughness={0.7} />
-      </mesh>
-
-      {/* Cozy Decorative Floor Rug */}
-      <mesh position={[0.2, 0.01, -0.6]} receiveShadow>
-        <boxGeometry args={[5.2, 0.02, 4.2]} />
-        <meshStandardMaterial color="#334155" roughness={0.9} />
-      </mesh>
-
-      {/* Back Wall (along X axis at z = -5) */}
-      <mesh position={[0, 3, -5]} receiveShadow>
-        <boxGeometry args={[10, 6, 0.3]} />
-        <meshStandardMaterial color="#475569" roughness={0.8} />
-      </mesh>
-
-      {/* Left Wall (along Z axis at x = -5) */}
-      <mesh position={[-5, 3, 0]} receiveShadow>
-        <boxGeometry args={[0.3, 6, 10]} />
-        <meshStandardMaterial color="#3f4e64" roughness={0.8} />
-      </mesh>
-
-      {/* Baseboards / Skirting */}
-      <mesh position={[0, 0.1, -4.85]}>
-        <boxGeometry args={[9.7, 0.2, 0.05]} />
-        <meshStandardMaterial color="#1e293b" />
-      </mesh>
-      <mesh position={[-4.85, 0.1, 0]}>
-        <boxGeometry args={[0.05, 0.2, 9.7]} />
-        <meshStandardMaterial color="#1e293b" />
-      </mesh>
-
-      {/* ========================================================= */}
-      {/* 2. FURNITURE: DESK & CHAIR */}
-      {/* ========================================================= */}
-
-      {/* Desk Top */}
-      <mesh position={[0, 1.5, -2.8]} castShadow receiveShadow>
-        <boxGeometry args={[4.4, 0.1, 2.0]} />
-        <meshStandardMaterial color="#92400e" roughness={0.5} />
-      </mesh>
-
-      {/* Desk Legs (4 corner supports) */}
-      <mesh position={[-2.0, 0.725, -3.6]} castShadow receiveShadow>
-        <cylinderGeometry args={[0.05, 0.05, 1.45, 12]} />
-        <meshStandardMaterial color="#18181b" metalness={0.6} roughness={0.4} />
-      </mesh>
-      <mesh position={[2.0, 0.725, -3.6]} castShadow receiveShadow>
-        <cylinderGeometry args={[0.05, 0.05, 1.45, 12]} />
-        <meshStandardMaterial color="#18181b" metalness={0.6} roughness={0.4} />
-      </mesh>
-      <mesh position={[-2.0, 0.725, -2.0]} castShadow receiveShadow>
-        <cylinderGeometry args={[0.05, 0.05, 1.45, 12]} />
-        <meshStandardMaterial color="#18181b" metalness={0.6} roughness={0.4} />
-      </mesh>
-      <mesh position={[2.0, 0.725, -2.0]} castShadow receiveShadow>
-        <cylinderGeometry args={[0.05, 0.05, 1.45, 12]} />
-        <meshStandardMaterial color="#18181b" metalness={0.6} roughness={0.4} />
-      </mesh>
-
-      {/* Minimal Desk Stool / Chair */}
-      <group position={[0, 0, -1.3]}>
-        {/* Seat */}
-        <mesh position={[0, 0.9, 0]} castShadow receiveShadow>
-          <cylinderGeometry args={[0.45, 0.45, 0.1, 24]} />
-          <meshStandardMaterial color="#18181b" roughness={0.6} />
-        </mesh>
-        {/* Central stem */}
-        <mesh position={[0, 0.45, 0]} castShadow>
-          <cylinderGeometry args={[0.05, 0.05, 0.8, 12]} />
-          <meshStandardMaterial color="#71717a" metalness={0.8} />
-        </mesh>
-        {/* Base */}
-        <mesh position={[0, 0.03, 0]} receiveShadow>
-          <cylinderGeometry args={[0.35, 0.35, 0.04, 24]} />
-          <meshStandardMaterial color="#3f3f46" metalness={0.7} />
-        </mesh>
+      {/* 2. SKETCHBOOK: placed on free spot on desk [1.4, 1.25, -2.1] */}
+      <group
+        name="Sketchbook"
+        position={[1.4, 1.25, -2.1]}
+        rotation={[0, -0.25, 0]}
+        {...getInteractiveProps('sketchbook')}
+      >
+        <primitive
+          object={sketchbookScene}
+          scale={[0.00055, 0.00055, 0.00055]}
+          position={[0.042, 0.003, -0.166]}
+        />
       </group>
 
-      {/* ========================================================= */}
-      {/* 3. INTERACTIVE OBJECT 1: MONITOR (name="Monitor") */}
-      {/* ========================================================= */}
-      <group position={[0, 1.55, -3.2]}>
-        {/* Monitor Screen - Primary Clickable Target */}
-        <mesh
-          name="Monitor"
-          position={[0, 0.75, 0]}
-          castShadow
-          receiveShadow
-          {...getInteractiveProps('monitor')}
-        >
-          <boxGeometry args={[1.8, 1.1, 0.08]} />
-          <meshStandardMaterial
-            color="#09090b"
-            roughness={0.3}
-            metalness={0.5}
-            emissive={hoveredObject === 'monitor' ? '#6366f1' : '#000000'}
-            emissiveIntensity={hoveredObject === 'monitor' ? 0.35 : 0}
-          />
-        </mesh>
-        {/* Display Panel Inset */}
-        <mesh position={[0, 0.75, 0.045]}>
-          <planeGeometry args={[1.68, 0.98]} />
-          <meshStandardMaterial
-            color="#0f172a"
-            roughness={0.2}
-            emissive="#1e1b4b"
-            emissiveIntensity={0.3}
-          />
-        </mesh>
-        {/* Monitor Stand Vertical Stem */}
-        <mesh position={[0, 0.3, -0.05]} castShadow>
-          <cylinderGeometry args={[0.04, 0.04, 0.6, 12]} />
-          <meshStandardMaterial color="#27272a" metalness={0.7} />
-        </mesh>
-        {/* Monitor Base Foot */}
-        <mesh position={[0, 0.02, 0.05]} receiveShadow>
-          <boxGeometry args={[0.6, 0.03, 0.35]} />
-          <meshStandardMaterial color="#27272a" metalness={0.7} />
-        </mesh>
+      {/* 3. HEADPHONES: placed on desk [-0.15, 1.25, -2.0], visible from isometric angle */}
+      <group
+        name="Headphones"
+        position={[-0.15, 1.25, -2.0]}
+        rotation={[0, 0.5, 0]}
+        {...getInteractiveProps('headphones')}
+      >
+        <primitive
+          object={headphonesScene}
+          scale={[0.025, 0.025, 0.025]}
+          position={[0, 0.114, 0]}
+        />
       </group>
 
-      {/* ========================================================= */}
-      {/* 4. INTERACTIVE OBJECT 2: LAPTOP (name="Laptop") */}
-      {/* ========================================================= */}
-      <group position={[1.4, 1.55, -2.6]} rotation={[0, -0.25, 0]}>
-        {/* Laptop Base Body - Primary Clickable Target */}
-        <mesh
-          name="Laptop"
-          position={[0, 0.02, 0]}
-          castShadow
-          receiveShadow
-          {...getInteractiveProps('laptop')}
-        >
-          <boxGeometry args={[0.7, 0.03, 0.5]} />
-          <meshStandardMaterial
-            color="#a1a1aa"
-            metalness={0.8}
-            roughness={0.25}
-            emissive={hoveredObject === 'laptop' ? '#38bdf8' : '#000000'}
-            emissiveIntensity={hoveredObject === 'laptop' ? 0.4 : 0}
-          />
-        </mesh>
-        {/* Keyboard Inset */}
-        <mesh position={[0, 0.036, 0.05]}>
-          <planeGeometry args={[0.6, 0.3]} rotation={[-Math.PI / 2, 0, 0]} />
-          <meshStandardMaterial color="#18181b" roughness={0.8} />
-        </mesh>
-        {/* Angled Laptop Screen Lid */}
-        <group position={[0, 0.03, -0.25]} rotation={[0.25, 0, 0]}>
-          <mesh position={[0, 0.22, 0]} castShadow>
-            <boxGeometry args={[0.7, 0.45, 0.02]} />
-            <meshStandardMaterial color="#71717a" metalness={0.8} roughness={0.25} />
-          </mesh>
-          <mesh position={[0, 0.22, 0.012]}>
-            <planeGeometry args={[0.64, 0.4]} />
-            <meshStandardMaterial color="#0284c7" emissive="#0369a1" emissiveIntensity={0.2} roughness={0.3} />
-          </mesh>
-        </group>
+      {/* 4. FOOTBALL (Cleats): placed on floor near door [1.95, 0.20, -2.4] */}
+      <group
+        name="Football"
+        position={[1.95, 0.20, -2.4]}
+        rotation={[0, -0.6, 0]}
+        {...getInteractiveProps('football')}
+      >
+        <primitive
+          object={footballScene}
+          scale={[1.1, 1.1, 1.1]}
+          position={[0.03, 0.023, -0.078]}
+        />
       </group>
 
-      {/* ========================================================= */}
-      {/* 5. INTERACTIVE OBJECT 3: SKETCHBOOK (name="Sketchbook") */}
-      {/* ========================================================= */}
-      <group position={[-1.3, 1.55, -2.5]} rotation={[0, 0.2, 0]}>
-        {/* Sketchbook Cover & Block - Primary Clickable Target */}
-        <mesh
-          name="Sketchbook"
-          position={[0, 0.02, 0]}
-          castShadow
-          receiveShadow
-          {...getInteractiveProps('sketchbook')}
-        >
-          <boxGeometry args={[0.6, 0.04, 0.8]} />
-          <meshStandardMaterial
-            color="#78350f"
-            roughness={0.7}
-            emissive={hoveredObject === 'sketchbook' ? '#f59e0b' : '#000000'}
-            emissiveIntensity={hoveredObject === 'sketchbook' ? 0.35 : 0}
-          />
-        </mesh>
-        {/* Paper Pages Inset */}
-        <mesh position={[0.02, 0.042, 0]}>
-          <boxGeometry args={[0.54, 0.01, 0.74]} />
-          <meshStandardMaterial color="#fef3c7" roughness={0.9} />
-        </mesh>
-        {/* Drawing Pencil next to sketchbook */}
-        <mesh position={[0.38, 0.015, 0]} rotation={[0, 0.08, 0]} castShadow>
-          <cylinderGeometry args={[0.012, 0.012, 0.65, 8]} rotation={[0, 0, Math.PI / 2]} />
-          <meshStandardMaterial color="#d97706" roughness={0.5} />
-        </mesh>
-      </group>
-
-      {/* ========================================================= */}
-      {/* 6. INTERACTIVE OBJECT 4: HEADPHONES (name="Headphones") */}
-      {/* ========================================================= */}
-      <group position={[1.85, 1.55, -3.2]}>
-        {/* Headphone Stand Base */}
-        <mesh position={[0, 0.02, 0]} receiveShadow>
-          <cylinderGeometry args={[0.15, 0.15, 0.03, 16]} />
-          <meshStandardMaterial color="#27272a" metalness={0.6} />
-        </mesh>
-        {/* Headphone Stand Pole */}
-        <mesh position={[0, 0.35, 0]} castShadow>
-          <cylinderGeometry args={[0.018, 0.018, 0.65, 12]} />
-          <meshStandardMaterial color="#3f3f46" metalness={0.8} />
-        </mesh>
-        {/* Headphones Headband Arc - Primary Clickable Target */}
-        <mesh
-          name="Headphones"
-          position={[0, 0.62, 0]}
-          castShadow
-          receiveShadow
-          {...getInteractiveProps('headphones')}
-        >
-          <torusGeometry args={[0.16, 0.025, 12, 24, Math.PI]} rotation={[0, 0, 0]} />
-          <meshStandardMaterial
-            color="#4f46e5"
-            metalness={0.4}
-            roughness={0.3}
-            emissive={hoveredObject === 'headphones' ? '#818cf8' : '#000000'}
-            emissiveIntensity={hoveredObject === 'headphones' ? 0.4 : 0}
-          />
-        </mesh>
-        {/* Left Ear Cushion */}
-        <mesh position={[-0.16, 0.55, 0]} castShadow>
-          <cylinderGeometry args={[0.05, 0.05, 0.04, 16]} rotation={[0, 0, Math.PI / 2]} />
-          <meshStandardMaterial color="#1e1b4b" roughness={0.7} />
-        </mesh>
-        {/* Right Ear Cushion */}
-        <mesh position={[0.16, 0.55, 0]} castShadow>
-          <cylinderGeometry args={[0.05, 0.05, 0.04, 16]} rotation={[0, 0, Math.PI / 2]} />
-          <meshStandardMaterial color="#1e1b4b" roughness={0.7} />
-        </mesh>
-      </group>
-
-      {/* ========================================================= */}
-      {/* 7. INTERACTIVE OBJECT 5: BOOKSHELF (name="Bookshelf") */}
-      {/* ========================================================= */}
-      <group position={[-4.3, 0, -1.0]}>
-        {/* Outer Wooden Bookshelf Frame - Primary Clickable Target */}
-        <mesh
-          name="Bookshelf"
-          position={[0, 2.1, 0]}
-          castShadow
-          receiveShadow
-          {...getInteractiveProps('bookshelf')}
-        >
-          <boxGeometry args={[0.8, 4.2, 2.2]} />
-          <meshStandardMaterial
-            color="#451a03"
-            roughness={0.6}
-            emissive={hoveredObject === 'bookshelf' ? '#d97706' : '#000000'}
-            emissiveIntensity={hoveredObject === 'bookshelf' ? 0.25 : 0}
-          />
-        </mesh>
-
-        {/* Shelving Inset Compartment (hollow interior) */}
-        <mesh position={[0.05, 2.1, 0]}>
-          <boxGeometry args={[0.72, 4.0, 2.05]} />
-          <meshStandardMaterial color="#291205" roughness={0.7} />
-        </mesh>
-
-        {/* Individual Horizontal Shelves */}
-        <mesh position={[0.05, 1.1, 0]} receiveShadow>
-          <boxGeometry args={[0.7, 0.06, 2.0]} />
-          <meshStandardMaterial color="#78350f" />
-        </mesh>
-        <mesh position={[0.05, 2.1, 0]} receiveShadow>
-          <boxGeometry args={[0.7, 0.06, 2.0]} />
-          <meshStandardMaterial color="#78350f" />
-        </mesh>
-        <mesh position={[0.05, 3.1, 0]} receiveShadow>
-          <boxGeometry args={[0.7, 0.06, 2.0]} />
-          <meshStandardMaterial color="#78350f" />
-        </mesh>
-
-        {/* Decorative Books on Shelves */}
-        <mesh position={[0.05, 1.4, -0.6]} castShadow>
-          <boxGeometry args={[0.45, 0.55, 0.12]} />
-          <meshStandardMaterial color="#ef4444" roughness={0.5} />
-        </mesh>
-        <mesh position={[0.05, 1.38, -0.45]} castShadow>
-          <boxGeometry args={[0.45, 0.5, 0.14]} />
-          <meshStandardMaterial color="#3b82f6" roughness={0.5} />
-        </mesh>
-        <mesh position={[0.05, 1.42, -0.28]} castShadow>
-          <boxGeometry args={[0.45, 0.58, 0.16]} />
-          <meshStandardMaterial color="#10b981" roughness={0.5} />
-        </mesh>
-        <mesh position={[0.05, 1.35, -0.1]} castShadow>
-          <boxGeometry args={[0.45, 0.46, 0.14]} />
-          <meshStandardMaterial color="#f59e0b" roughness={0.5} />
-        </mesh>
-
-        <mesh position={[0.05, 2.38, 0.2]} castShadow>
-          <boxGeometry args={[0.45, 0.5, 0.2]} />
-          <meshStandardMaterial color="#8b5cf6" roughness={0.5} />
-        </mesh>
-        <mesh position={[0.05, 2.42, 0.45]} castShadow>
-          <boxGeometry args={[0.45, 0.58, 0.22]} />
-          <meshStandardMaterial color="#ec4899" roughness={0.5} />
-        </mesh>
-      </group>
-
-      {/* ========================================================= */}
-      {/* 8. INTERACTIVE OBJECT 6: JERSEY (name="Jersey") */}
-      {/* ========================================================= */}
-      <group position={[2.6, 3.8, -4.82]}>
-        {/* Framed Jersey Background Board */}
-        <mesh position={[0, 0, -0.02]} receiveShadow>
-          <boxGeometry args={[1.5, 1.8, 0.05]} />
-          <meshStandardMaterial color="#0f172a" roughness={0.4} />
-        </mesh>
-        {/* Frame Border */}
-        <mesh position={[0, 0, -0.01]}>
-          <boxGeometry args={[1.56, 1.86, 0.04]} />
-          <meshStandardMaterial color="#d4af37" metalness={0.8} roughness={0.3} />
-        </mesh>
-        {/* Jersey Main Body - Primary Clickable Target */}
-        <mesh
-          name="Jersey"
-          position={[0, -0.1, 0.03]}
-          castShadow
-          {...getInteractiveProps('jersey')}
-        >
-          <boxGeometry args={[0.9, 1.1, 0.04]} />
-          <meshStandardMaterial
-            color="#dc2626"
-            roughness={0.6}
-            emissive={hoveredObject === 'jersey' ? '#ef4444' : '#000000'}
-            emissiveIntensity={hoveredObject === 'jersey' ? 0.35 : 0}
-          />
-        </mesh>
-        {/* Left Sleeve */}
-        <mesh position={[-0.56, 0.28, 0.03]} rotation={[0, 0, -0.45]} castShadow>
-          <boxGeometry args={[0.35, 0.35, 0.04]} />
-          <meshStandardMaterial color="#b91c1c" roughness={0.6} />
-        </mesh>
-        {/* Right Sleeve */}
-        <mesh position={[0.56, 0.28, 0.03]} rotation={[0, 0, 0.45]} castShadow>
-          <boxGeometry args={[0.35, 0.35, 0.04]} />
-          <meshStandardMaterial color="#b91c1c" roughness={0.6} />
-        </mesh>
-        {/* Jersey Collar / Number Accent */}
-        <mesh position={[0, 0.4, 0.055]}>
-          <boxGeometry args={[0.25, 0.1, 0.01]} />
-          <meshStandardMaterial color="#ffffff" roughness={0.5} />
-        </mesh>
-        <mesh position={[0, -0.05, 0.055]}>
-          <boxGeometry args={[0.3, 0.35, 0.01]} />
-          <meshStandardMaterial color="#ffffff" roughness={0.5} />
-        </mesh>
-      </group>
-
-      {/* ========================================================= */}
-      {/* 9. INTERACTIVE OBJECT 7: FOOTBALL (name="Football") */}
-      {/* ========================================================= */}
-      <group position={[2.6, 0, 1.6]}>
-        {/* Football Sphere - Primary Clickable Target */}
-        <mesh
-          name="Football"
-          position={[0, 0.35, 0]}
-          castShadow
-          receiveShadow
-          {...getInteractiveProps('football')}
-        >
-          <sphereGeometry args={[0.35, 32, 32]} />
-          <meshStandardMaterial
-            color="#f8fafc"
-            roughness={0.35}
-            metalness={0.1}
-            emissive={hoveredObject === 'football' ? '#10b981' : '#000000'}
-            emissiveIntensity={hoveredObject === 'football' ? 0.35 : 0}
-          />
-        </mesh>
-
-        {/* Stylized Football Boots resting next to the ball */}
-        <mesh position={[-0.45, 0.1, 0.15]} rotation={[0, 0.4, 0]} castShadow>
-          <boxGeometry args={[0.18, 0.16, 0.42]} />
-          <meshStandardMaterial color="#0284c7" roughness={0.4} />
-        </mesh>
-        <mesh position={[-0.2, 0.1, 0.35]} rotation={[0, 0.1, 0]} castShadow>
-          <boxGeometry args={[0.18, 0.16, 0.42]} />
-          <meshStandardMaterial color="#0284c7" roughness={0.4} />
-        </mesh>
+      {/* 5. JERSEY: mounted on wall at [2.4, 2.4, -2.9] */}
+      <group
+        name="Jersey"
+        position={[2.4, 2.4, -2.9]}
+        rotation={[0, 0, 0]}
+        {...getInteractiveProps('jersey')}
+      >
+        <primitive
+          object={jerseyScene}
+          scale={[0.85, 0.85, 0.85]}
+        />
       </group>
     </group>
   );
 }
+
+// Preload models for instantaneous rendering
+useGLTF.preload('/models/room.glb');
+useGLTF.preload('/models/props/football.glb');
+useGLTF.preload('/models/props/headphones.glb');
+useGLTF.preload('/models/props/sketchbook.glb');
+useGLTF.preload('/models/props/jersey.glb');
