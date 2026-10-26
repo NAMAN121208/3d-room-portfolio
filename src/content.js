@@ -21,13 +21,8 @@ export const stops = [
     panel: { blurb: "Add favourite games and memorable moments.", games: [] },
   },
   {
-    id: "sketchbook", meshName: "Sketchbook", title: "Art Gallery",
-    cameraPosition: [-0.5, 3.8, -0.5], lookAt: [-1.3, 1.6, -2.5],
-    panel: { blurb: "Add sketches, artwork, and the stories behind them.", artworks: [] },
-  },
-  {
     id: "headphones", meshName: "Headphones", title: "Music",
-    cameraPosition: [2.6, 2.8, -0.9], lookAt: [1.85, 2, -3.2], integration: "spotify",
+    cameraPosition: [-1.10, 2.35, -0.30], lookAt: [-2.60, 1.48, -1.90], integration: "spotify",
     panel: {
       blurb: "Add a few words about <name>'s music taste.",
       // Paste a chosen playlist's https://open.spotify.com/embed/playlist/... URL.
@@ -35,8 +30,13 @@ export const stops = [
     },
   },
   {
+    id: "sketchbook", meshName: "Sketchbook", title: "Art Gallery",
+    cameraPosition: [2.20, 2.35, 2.90], lookAt: [0.60, 0.58, 1.30],
+    panel: { blurb: "Add sketches, artwork, and the stories behind them.", artworks: [] },
+  },
+  {
     id: "football", meshName: "Football", title: "Football",
-    cameraPosition: [4, 2.2, 4.8], lookAt: [2.4, 0.3, 1.7],
+    cameraPosition: [3.70, 1.90, -0.60], lookAt: [2.02, 0.32, -2.28],
     panel: { blurb: "Add favourite teams, playing position, and football memories.", highlights: [] },
   },
   {

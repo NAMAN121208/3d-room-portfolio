@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Phase 8: Props Integration Preview</title>
+  <title>Props Placement & Camera Framing Preview</title>
   <style>
     body {
       margin: 0;
@@ -26,7 +26,7 @@
       border: 1px solid rgba(148, 163, 184, 0.25);
       border-radius: 12px;
       padding: 16px 20px;
-      max-width: 420px;
+      max-width: 440px;
       pointer-events: auto;
       box-shadow: 0 12px 30px rgba(0,0,0,0.6);
     }
@@ -39,7 +39,7 @@
       align-items: center;
       gap: 8px;
     }
-    #hud .status-dot {
+    .status-dot {
       width: 8px;
       height: 8px;
       border-radius: 50%;
@@ -53,40 +53,28 @@
       color: #94a3b8;
       line-height: 1.45;
     }
-    .badge {
-      display: inline-block;
-      padding: 2px 7px;
-      border-radius: 4px;
+    .btn-group {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+      flex-wrap: wrap;
+    }
+    .btn {
+      background: rgba(30, 41, 59, 0.9);
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      color: #cbd5e1;
+      padding: 6px 12px;
+      border-radius: 6px;
       font-size: 11px;
       font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.2s;
     }
-    .badge-prop { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.5); }
-    .badge-room { background: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.5); }
-
-    #tooltip {
-      position: absolute;
-      display: none;
-      background: rgba(15, 23, 42, 0.95);
-      border: 1px solid #38bdf8;
-      border-radius: 8px;
-      padding: 8px 14px;
-      font-size: 12px;
-      pointer-events: none;
-      transform: translate(-50%, -125%);
-      box-shadow: 0 8px 20px rgba(0,0,0,0.6);
-      z-index: 100;
-      white-space: nowrap;
-    }
-    #tooltip .title {
-      font-weight: 700;
-      color: #f8fafc;
-      font-size: 13px;
-    }
-    #tooltip .detail {
-      margin-top: 4px;
-      display: flex;
-      align-items: center;
-      gap: 6px;
+    .btn:hover, .btn.active {
+      background: #0284c7;
+      color: #fff;
+      border-color: #38bdf8;
     }
   </style>
 </head>
@@ -94,37 +82,25 @@
   <div id="canvas-container"></div>
 
   <div id="hud">
-    <h2><span class="status-dot"></span> Phase 8: Props Integration</h2>
-    <p>Room with loaded prop models: Sketchbook, Headphones, Football cleats, and Jersey.</p>
-    <div id="props-list" style="font-size:11px; font-family:monospace; color:#cbd5e1; display:flex; flex-direction:column; gap:4px;">
-      <div>• Sketchbook: On desk [1.4, 1.25, -2.1]</div>
-      <div>• Headphones: On desk [-0.15, 1.25, -2.0]</div>
-      <div>• Football: On floor near door [1.95, 0.20, -2.4]</div>
-      <div>• Jersey: Framed on wall [2.4, 2.4, -2.9]</div>
+    <h2><span class="status-dot"></span> Props Placement & Framing</h2>
+    <p>Calibrated placements on desk, coffee table, and floor. Switch views below:</p>
+    <div class="btn-group">
+      <a class="btn" id="btn-iso" href="?view=iso">Isometric Overview</a>
+      <a class="btn" id="btn-hp" href="?view=hp">Headphones Close-up</a>
+      <a class="btn" id="btn-sb" href="?view=sb">Sketchbook Close-up</a>
+      <a class="btn" id="btn-fb" href="?view=fb">Football Close-up</a>
     </div>
-  </div>
-
-  <div id="tooltip">
-    <div class="title" id="tt-title">Object Name</div>
-    <div class="detail" id="tt-detail"></div>
   </div>
 
   <script type="module">
     import * as THREE from 'three';
     import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
     const container = document.getElementById('canvas-container');
-    const tooltip = document.getElementById('tooltip');
-    const ttTitle = document.getElementById('tt-title');
-    const ttDetail = document.getElementById('tt-detail');
-
     const scene = new THREE.Scene();
     scene.background = new THREE.Color('#0a0d14');
 
-    const camera = new THREE.PerspectiveCamera(32, window.innerWidth / window.innerHeight, 0.1, 100);
-    // Isometric angle
-    camera.position.set(8.5, 7.0, 8.5);
+    const camera = new THREE.PerspectiveCamera(30, window.innerWidth / window.innerHeight, 0.1, 100);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, preserveDrawingBuffer: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
@@ -135,10 +111,23 @@
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     container.appendChild(renderer.domElement);
 
-    const controls = new OrbitControls(camera, renderer.domElement);
-    controls.target.set(0, 1.2, 0);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.05;
+    // Camera views matching content.js
+    const views = {
+      iso: { pos: [8.5, 7.0, 8.5], target: [0, 1.2, 0] },
+      hp: { pos: [-1.10, 2.35, -0.30], target: [-2.60, 1.48, -1.90] },
+      sb: { pos: [2.20, 2.35, 2.90], target: [0.60, 0.58, 1.30] },
+      fb: { pos: [3.70, 1.90, -0.60], target: [2.02, 0.32, -2.28] }
+    };
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const viewParam = urlParams.get('view') || 'iso';
+    const activeView = views[viewParam] || views.iso;
+
+    camera.position.set(...activeView.pos);
+    camera.lookAt(...activeView.target);
+
+    const activeBtn = document.getElementById(`btn-${viewParam}`);
+    if (activeBtn) activeBtn.classList.add('active');
 
     // Lighting matching Lights.jsx
     const ambientLight = new THREE.AmbientLight('#fff7ed', 0.95);
@@ -163,135 +152,176 @@
     accentLight.position.set(-0.5, 2.8, -2.4);
     scene.add(accentLight);
 
-    const loader = new GLTFLoader();
-    const allMeshes = [];
+    // Procedural Football Texture
+    function createFootballTexture() {
+      const canvas = document.createElement('canvas');
+      canvas.width = 512;
+      canvas.height = 256;
+      const ctx = canvas.getContext('2d');
 
-    function setupMeshes(rootObj, groupName, isProp = false) {
-      rootObj.traverse((child) => {
+      ctx.fillStyle = '#f8fafc';
+      ctx.fillRect(0, 0, 512, 256);
+
+      ctx.fillStyle = '#0f172a';
+      const patches = [
+        [128, 64], [384, 64], [256, 128], [128, 192], [384, 192],
+        [0, 128], [512, 128]
+      ];
+
+      for (const [x, y] of patches) {
+        ctx.beginPath();
+        for (let i = 0; i < 5; i++) {
+          const angle = (i * 2 * Math.PI) / 5 - Math.PI / 2;
+          const px = x + 24 * Math.cos(angle);
+          const py = y + 24 * Math.sin(angle);
+          if (i === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = '#64748b';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.wrapS = THREE.RepeatWrapping;
+      texture.wrapT = THREE.ClampToEdgeWrapping;
+      return texture;
+    }
+
+    const loader = new GLTFLoader();
+
+    function setupShadows(obj) {
+      obj.traverse((child) => {
         if (child.isMesh) {
           child.castShadow = true;
           child.receiveShadow = true;
-          child.userData.groupName = groupName;
-          child.userData.isProp = isProp;
-          allMeshes.push(child);
         }
       });
     }
 
-    // 1. Room model
+    let loadedCount = 0;
+    function checkAllLoaded() {
+      loadedCount++;
+      renderer.render(scene, camera);
+      if (loadedCount >= 4) {
+        console.log('All models loaded and rendered.');
+        window.__ALL_LOADED__ = true;
+      }
+    }
+
+    // 1. Room
     loader.load('/models/room.glb', (gltf) => {
       scene.add(gltf.scene);
-      setupMeshes(gltf.scene, 'Room');
-      console.log('Room loaded');
+      setupShadows(gltf.scene);
+      checkAllLoaded();
     });
 
-    // 2. Sketchbook: on desk at [1.4, 1.25, -2.1]
-    loader.load('/models/props/sketchbook.glb', (gltf) => {
-      const group = new THREE.Group();
-      group.name = 'Sketchbook';
-      group.position.set(1.4, 1.25, -2.1);
-      group.rotation.set(0, -0.25, 0);
-
-      // Offset and scale so bottom sits flush at y=0, centered in X and Z
-      const model = gltf.scene;
-      model.scale.set(0.00055, 0.00055, 0.00055);
-      model.position.set(0.042, 0.003, -0.166);
-
-      group.add(model);
-      scene.add(group);
-      setupMeshes(group, 'Sketchbook', true);
-      console.log('Sketchbook loaded');
-    });
-
-    // 3. Headphones: on desk at [-0.15, 1.25, -2.0]
+    // 2. Headphones on Stand
     loader.load('/models/props/headphones.glb', (gltf) => {
       const group = new THREE.Group();
       group.name = 'Headphones';
-      group.position.set(-0.15, 1.25, -2.0);
-      group.rotation.set(0, 0.5, 0);
+      group.position.set(-2.60, 1.24, -1.90);
+      group.rotation.set(0, 0.65, 0);
 
-      const model = gltf.scene;
-      model.scale.set(0.025, 0.025, 0.025);
-      model.position.set(0, 0.114, 0);
+      const baseGeo = new THREE.CylinderGeometry(0.08, 0.085, 0.015, 24);
+      const standMat = new THREE.MeshStandardMaterial({ color: '#27272a', metalness: 0.8, roughness: 0.25 });
+      const baseMesh = new THREE.Mesh(baseGeo, standMat);
+      baseMesh.position.set(0, 0.0075, 0);
+      baseMesh.castShadow = true;
+      baseMesh.receiveShadow = true;
+      group.add(baseMesh);
 
-      group.add(model);
+      const stemGeo = new THREE.CylinderGeometry(0.009, 0.009, 0.44, 16);
+      const stemMesh = new THREE.Mesh(stemGeo, standMat);
+      stemMesh.position.set(0, 0.23, 0);
+      stemMesh.castShadow = true;
+      group.add(stemMesh);
+
+      const cradleGeo = new THREE.CylinderGeometry(0.012, 0.012, 0.12, 16);
+      const cradleMesh = new THREE.Mesh(cradleGeo, standMat);
+      cradleMesh.rotation.set(0, 0, Math.PI / 2);
+      cradleMesh.position.set(0, 0.45, 0);
+      cradleMesh.castShadow = true;
+      group.add(cradleMesh);
+
+      const hp = gltf.scene;
+      hp.scale.set(0.046, 0.046, 0.046);
+      hp.position.set(0, 0.27, 0);
+      setupShadows(hp);
+      group.add(hp);
+
       scene.add(group);
-      setupMeshes(group, 'Headphones', true);
-      console.log('Headphones loaded');
+      checkAllLoaded();
     });
 
-    // 4. Football cleats: on floor near door at [1.95, 0.20, -2.4]
+    // 3. Sketchbook on Coffee Table
+    loader.load('/models/props/sketchbook.glb', (gltf) => {
+      const group = new THREE.Group();
+      group.name = 'Sketchbook';
+      group.position.set(0.60, 0.56, 1.30);
+      group.rotation.set(0, (25 * Math.PI) / 180, 0);
+
+      const sb = gltf.scene;
+      sb.scale.set(0.00039, 0.00052, 0.00042);
+      sb.position.set(0.030, 0.0025, -0.127);
+      setupShadows(sb);
+      group.add(sb);
+
+      scene.add(group);
+      checkAllLoaded();
+    });
+
+    // 4. Football (Boots + Ball)
     loader.load('/models/props/football.glb', (gltf) => {
       const group = new THREE.Group();
       group.name = 'Football';
-      group.position.set(1.95, 0.20, -2.4);
-      group.rotation.set(0, -0.6, 0);
 
-      const model = gltf.scene;
-      model.scale.set(1.1, 1.1, 1.1);
-      // Center and sit flush on floor
-      model.position.set(0.03, 0.023, -0.078);
+      const bootsGroup = new THREE.Group();
+      bootsGroup.position.set(1.75, 0.20, -2.35);
+      bootsGroup.rotation.set(0, (-35 * Math.PI) / 180, 0);
 
-      group.add(model);
+      const boots = gltf.scene;
+      boots.scale.set(1.10, 1.10, 1.10);
+      boots.position.set(0.03, 0.023, -0.078);
+      setupShadows(boots);
+      bootsGroup.add(boots);
+      group.add(bootsGroup);
+
+      const ballRadius = 0.175;
+      const ballGeo = new THREE.SphereGeometry(ballRadius, 32, 32);
+      const ballMat = new THREE.MeshStandardMaterial({
+        map: createFootballTexture(),
+        roughness: 0.35,
+        metalness: 0.05
+      });
+      const ballMesh = new THREE.Mesh(ballGeo, ballMat);
+      ballMesh.position.set(2.30, 0.20 + ballRadius, -2.20);
+      ballMesh.castShadow = true;
+      ballMesh.receiveShadow = true;
+      group.add(ballMesh);
+
       scene.add(group);
-      setupMeshes(group, 'Football', true);
-      console.log('Football cleats loaded');
+      checkAllLoaded();
     });
 
-    // 5. Jersey: framed on wall at [2.4, 2.4, -2.9]
-    loader.load('/models/props/jersey.glb', (gltf) => {
-      const group = new THREE.Group();
-      group.name = 'Jersey';
-      group.position.set(2.4, 2.4, -2.9);
-      group.rotation.set(0, 0, 0);
-
-      const model = gltf.scene;
-      model.scale.set(0.85, 0.85, 0.85);
-      group.add(model);
-      scene.add(group);
-      setupMeshes(group, 'Jersey', true);
-      console.log('Jersey loaded');
-    });
-
-    const raycaster = new THREE.Raycaster();
-    const mouse = new THREE.Vector2();
-
-    window.addEventListener('pointermove', (e) => {
-      mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
-      mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
-
-      raycaster.setFromCamera(mouse, camera);
-      const intersects = raycaster.intersectObjects(allMeshes);
-
-      if (intersects.length > 0) {
-        const hit = intersects[0].object;
-        const gName = hit.userData.groupName || hit.name;
-        const isProp = hit.userData.isProp;
-
-        ttTitle.textContent = `${gName}`;
-        ttDetail.innerHTML = `<span class="badge ${isProp ? 'badge-prop' : 'badge-room'}">${isProp ? 'Interactive Prop' : 'Room Geometry'}</span> <span style="color:#94a3b8;font-size:11px;">Mesh: ${hit.name}</span>`;
-        tooltip.style.display = 'block';
-        tooltip.style.left = e.clientX + 'px';
-        tooltip.style.top = e.clientY + 'px';
-        document.body.style.cursor = 'pointer';
-      } else {
-        tooltip.style.display = 'none';
-        document.body.style.cursor = 'default';
+    // If headless / screenshot capture, render once when loaded and stop rAF
+    const isHeadless = navigator.webdriver || urlParams.has('headless');
+    if (!isHeadless) {
+      function animate() {
+        requestAnimationFrame(animate);
+        renderer.render(scene, camera);
       }
-    });
+      animate();
+    }
 
     window.addEventListener('resize', () => {
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
-    });
-
-    function animate() {
-      requestAnimationFrame(animate);
-      controls.update();
       renderer.render(scene, camera);
-    }
-    animate();
+    });
   </script>
 </body>
 </html>

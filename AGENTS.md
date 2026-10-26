@@ -38,13 +38,13 @@ A personal portfolio website shaped like a **3D isometric room**. As the visitor
 | 1 | Whole room (wide shot) | Intro and name | none |
 | 2 | Monitor | Coding and skills | **GitHub** |
 | 3 | Laptop | Games played | none |
-| 4 | Sketchbook (on desk) | Art gallery | none |
-| 5 | Headphones (on stand) | Music | **Spotify** |
+| 4 | Headphones (on stand) | Music | **Spotify** |
+| 5 | Sketchbook (on coffee table) | Art gallery | none |
 | 6 | Football and boots | Football | none |
 | 7 | Jersey (on wall) | Football story | none |
 | 8 | Bookshelf | Reading | none |
 
-Stop 1 is the intro wide shot. Stops 2 to 8 are the seven objects. Order is chosen to keep camera moves short: desk items first, then football items, then the shelf.
+Stop 1 is the intro wide shot. Stops 2 to 8 are the seven objects. Order is chosen to keep camera moves short: desk items first, then coffee table sketchbook, then football items, then the shelf.
 
 **Out of scope for now:** extra objects (plant, lamp, cat, camera, console), sound design, day/night toggle. Do not add them unless asked.
 

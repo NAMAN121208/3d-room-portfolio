@@ -31,7 +31,7 @@ const emptySpotify = (body) => {
 };
 
 test("content has the eight ordered stops and validates", () => {
-  assert.deepEqual(stops.map((s) => s.id), ["intro", "monitor", "laptop", "sketchbook", "headphones", "football", "jersey", "bookshelf"]);
+  assert.deepEqual(stops.map((s) => s.id), ["intro", "monitor", "laptop", "headphones", "sketchbook", "football", "jersey", "bookshelf"]);
   assert.deepEqual(validateContent(stops, () => assert.fail("Unexpected warning")), []);
   assert.ok(stops[0].title.includes("<name>"));
 });
