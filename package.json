@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "prepare:room": "node scripts/prepare-room.mjs",
     "test": "node --test src/hooks/cameraPath.test.js tests/content-and-api.test.mjs tests/clickToZoom.test.mjs"
   },
   "dependencies": {
@@ -20,6 +21,9 @@
     "three": "^0.174.0"
   },
   "devDependencies": {
+    "@gltf-transform/core": "^4.5.1",
+    "@gltf-transform/extensions": "^4.5.1",
+    "@gltf-transform/functions": "^4.5.1",
     "@tailwindcss/vite": "^4.0.9",
     "@vitejs/plugin-react": "^4.3.4",
     "tailwindcss": "^4.0.9",
