@@ -1,5 +1,6 @@
 // src/App.jsx
-// Phase 4 (Branch 2): Connect static panels to the click-to-zoom state machine
+// Phase 4 & Floating Detail Panels:
+// Replaced full-screen modal overlays with compact floating cards anchored to 3D objects.
 import React, { useEffect, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import Lenis from 'lenis';
@@ -7,21 +8,35 @@ import Lenis from 'lenis';
 import Room from './scene/Room';
 import Lights from './scene/Lights';
 import CameraRig from './scene/CameraRig';
+import ObjectAnchor from './scene/ObjectAnchor';
 import { stops, scrollSectionVh, scrollHint } from './content';
 import { useReducedMotion } from './hooks/useReducedMotion';
 import { useClickToZoom } from './hooks/useClickToZoom';
 
-// Static panels from Phase 5
+// Object Detail Panels
+import GithubPanel from './panels/GithubPanel';
 import GamesPanel from './panels/GamesPanel';
 import SketchGallery from './panels/SketchGallery';
+import SpotifyPanel from './panels/SpotifyPanel';
 import FootballPanel from './panels/FootballPanel';
 import ReadingPanel from './panels/ReadingPanel';
 
 export default function App() {
   const [scrollDriver, setScrollDriver] = useState(null);
   const [hoveredObject, setHoveredObject] = useState(null);
+  const [anchorData, setAnchorData] = useState(null);
   const reducedMotion = useReducedMotion();
   const { focusedId, isFocused, focus, unfocus } = useClickToZoom(scrollDriver);
+
+  // Optional URL parameter (?focus=laptop) for testing and direct deep-linking
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const initialFocus = new URLSearchParams(window.location.search).get('focus');
+      if (initialFocus) {
+        focus(initialFocus.toLowerCase());
+      }
+    }
+  }, [focus]);
 
   // Initialize Lenis smooth scrolling
   useEffect(() => {
@@ -91,15 +106,31 @@ export default function App() {
             reducedMotion={reducedMotion}
             focusedId={focusedId}
           />
+
+          {/* 3D Object Anchor & Projected Screen Position Tracker */}
+          <ObjectAnchor
+            focusedId={focusedId}
+            onAnchorUpdate={setAnchorData}
+          />
         </Canvas>
       </div>
 
-      {/* Active Object Detail Panels */}
+      {/* Active Object Floating Detail Panels */}
+      {focusedId === 'monitor' && (
+        <GithubPanel
+          isOpen={true}
+          onClose={unfocus}
+          data={activeStop}
+          anchor={anchorData}
+        />
+      )}
+
       {focusedId === 'laptop' && (
         <GamesPanel
           isOpen={true}
           onClose={unfocus}
           data={activeStop}
+          anchor={anchorData}
         />
       )}
 
@@ -108,6 +139,16 @@ export default function App() {
           isOpen={true}
           onClose={unfocus}
           data={activeStop}
+          anchor={anchorData}
+        />
+      )}
+
+      {focusedId === 'headphones' && (
+        <SpotifyPanel
+          isOpen={true}
+          onClose={unfocus}
+          data={activeStop}
+          anchor={anchorData}
         />
       )}
 
@@ -116,6 +157,7 @@ export default function App() {
           isOpen={true}
           onClose={unfocus}
           data={activeStop}
+          anchor={anchorData}
         />
       )}
 
@@ -124,6 +166,7 @@ export default function App() {
           isOpen={true}
           onClose={unfocus}
           data={activeStop}
+          anchor={anchorData}
         />
       )}
 
@@ -137,7 +180,7 @@ export default function App() {
               }`}
             />
             <h1 className="font-semibold text-sm tracking-wide text-slate-100">
-              3D Room Portfolio • {isFocused ? `Focused: ${activeStop?.title || focusedId}` : 'Greybox'}
+              3D Room Portfolio • {isFocused ? `Focused: ${activeStop?.title || focusedId}` : 'Overview'}
             </h1>
           </div>
           <p className="text-xs text-slate-400 leading-relaxed">

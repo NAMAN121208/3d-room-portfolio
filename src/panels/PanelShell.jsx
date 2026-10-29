@@ -1,8 +1,13 @@
 // src/panels/PanelShell.jsx
-// Shared animated modal container for 3D room object panels
-// Features: Framer Motion animation, synchronized zoom timing, Esc-to-close, full focus trap, accessibility
+// Floating detail card anchored beside focused 3D room objects.
+// Features:
+// - Anchors next to object on side with more free space, never covering object center
+// - Thin SVG leader line with pulsing dot on the object
+// - Responsive: transforms to bottom sheet on mobile (<640px)
+// - Accessible: role="dialog", aria-labelledby, non-modal (canvas interactive)
+// - Respects prefers-reduced-motion (fade only, no scale/pulse)
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState, useLayoutEffect } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 
 export default function PanelShell({
@@ -11,230 +16,311 @@ export default function PanelShell({
   title,
   subtitle,
   badge,
+  anchor = null, // { x, y, rect: { left, right, top, bottom }, isCameraZoomed }
   children,
 }) {
-  const modalRef = useRef(null);
+  const cardRef = useRef(null);
   const previousActiveElement = useRef(null);
   const shouldReduceMotion = useReducedMotion();
 
-  // Remember previous focus and focus the modal on open; restore focus on close
+  // Track window dimensions for responsive clamping & anchoring
+  const [windowSize, setWindowSize] = useState(() => ({
+    width: typeof window !== 'undefined' ? window.innerWidth : 1280,
+    height: typeof window !== 'undefined' ? window.innerHeight : 800,
+  }));
+
+  // Track measured card height for accurate vertical centering
+  const [cardHeight, setCardHeight] = useState(400);
+
   useEffect(() => {
-    if (!isOpen) return;
+    const handleResize = () => {
+      setWindowSize({
+        width: window.innerWidth,
+        height: window.innerHeight,
+      });
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  useLayoutEffect(() => {
+    if (cardRef.current) {
+      const rect = cardRef.current.getBoundingClientRect();
+      if (rect.height > 50 && rect.height !== cardHeight) {
+        setCardHeight(rect.height);
+      }
+    }
+  });
+
+  // Camera zoom readiness: only show once camera finishes glide (or immediately if reduced motion)
+  const isCameraZoomed = shouldReduceMotion
+    ? true
+    : anchor
+    ? anchor.isCameraZoomed ?? true
+    : true;
+
+  const isVisible = isOpen && isCameraZoomed;
+
+  // Accessible keyboard focus: move focus to card on open, restore on close
+  useEffect(() => {
+    if (!isVisible) return;
 
     previousActiveElement.current = document.activeElement;
 
-    // Focus close button or first focusable element after animation mount
     const timer = setTimeout(() => {
-      if (modalRef.current) {
-        const focusables = modalRef.current.querySelectorAll(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-        );
-        if (focusables.length > 0) {
-          focusables[0].focus();
+      if (cardRef.current) {
+        const closeBtn = cardRef.current.querySelector('button[aria-label="Close card"]');
+        if (closeBtn) {
+          closeBtn.focus();
         } else {
-          modalRef.current.focus();
+          cardRef.current.focus();
         }
       }
-    }, 240); // Aligns with the zoom glide delay
+    }, 120);
 
     return () => {
       clearTimeout(timer);
-      if (previousActiveElement.current && typeof previousActiveElement.current.focus === 'function') {
+      if (
+        previousActiveElement.current &&
+        typeof previousActiveElement.current.focus === 'function'
+      ) {
         previousActiveElement.current.focus();
       }
     };
-  }, [isOpen]);
+  }, [isVisible]);
 
-  // Handle Escape key and focus trap Tab/Shift+Tab
-  useEffect(() => {
-    if (!isOpen) return;
+  // --------------------------------------------------------------------------
+  // ANCHORING GEOMETRY
+  // --------------------------------------------------------------------------
+  const { width, height } = windowSize;
+  const isMobile = width < 640;
 
-    const handleKeyDown = (event) => {
-      // 1. Esc to close
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        onClose?.();
-        return;
-      }
+  // Desktop card target width: clamp(300px, 28vw, 420px)
+  const cardWidth = Math.min(420, Math.max(300, Math.round(width * 0.28)));
 
-      // 2. Focus Trap
-      if (event.key === 'Tab' && modalRef.current) {
-        const focusableElements = Array.from(
-          modalRef.current.querySelectorAll(
-            'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
-          )
-        ).filter((el) => el.offsetParent !== null); // only visible elements
+  // Object projected coordinates
+  const ox = anchor?.x ?? Math.round(width * 0.45);
+  const oy = anchor?.y ?? Math.round(height * 0.45);
+  const oLeft = anchor?.rect?.left ?? ox - 35;
+  const oRight = anchor?.rect?.right ?? ox + 35;
 
-        if (focusableElements.length === 0) {
-          event.preventDefault();
-          return;
-        }
+  // Determine side with more free space
+  const spaceLeft = oLeft;
+  const spaceRight = width - oRight;
+  const placeOnRight = spaceRight >= spaceLeft;
 
-        const firstElement = focusableElements[0];
-        const lastElement = focusableElements[focusableElements.length - 1];
+  // Calculate card horizontal position (cardX)
+  let cardX = 20;
+  if (placeOnRight) {
+    const tentativeX = oRight + 32;
+    cardX = Math.max(tentativeX, ox + 24);
+    cardX = Math.min(cardX, width - cardWidth - 20);
+    // Guarantee card never covers object center
+    if (cardX < ox + 12) cardX = ox + 12;
+  } else {
+    const tentativeX = oLeft - 32 - cardWidth;
+    cardX = Math.max(20, tentativeX);
+    // Guarantee card never covers object center
+    if (cardX + cardWidth > ox - 12) cardX = ox - 12 - cardWidth;
+  }
 
-        if (event.shiftKey) {
-          // Shift + Tab
-          if (document.activeElement === firstElement || document.activeElement === modalRef.current) {
-            event.preventDefault();
-            lastElement.focus();
-          }
-        } else {
-          // Tab
-          if (document.activeElement === lastElement) {
-            event.preventDefault();
-            firstElement.focus();
-          }
-        }
-      }
-    };
+  // Calculate card vertical position (cardY)
+  const effectiveCardH = Math.min(cardHeight, Math.round(height * 0.70));
+  let cardY = Math.round(oy - effectiveCardH / 2);
+  cardY = Math.max(20, Math.min(cardY, height - effectiveCardH - 20));
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
+  // Attachment point on card edge for the SVG leader line
+  const attachX = placeOnRight ? cardX : cardX + cardWidth;
+  const attachY = Math.max(cardY + 24, Math.min(oy, cardY + effectiveCardH - 24));
 
-  // Transition variants carefully timed to harmonize with the 3D camera zoom:
-  // Backdrop fades in after the camera begins gliding, and the panel floats up
-  // with a natural damped spring as the camera arrives at the object.
-  const backdropVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        duration: 0.3,
-        ease: 'easeOut',
-        delay: shouldReduceMotion ? 0 : 0.12,
-      },
-    },
-    exit: {
-      opacity: 0,
-      transition: {
-        duration: 0.18,
-        ease: 'easeIn',
-      },
-    },
-  };
-
-  const modalVariants = shouldReduceMotion
+  // --------------------------------------------------------------------------
+  // ANIMATION VARIANTS
+  // --------------------------------------------------------------------------
+  const cardVariants = shouldReduceMotion
     ? {
         hidden: { opacity: 0 },
         visible: { opacity: 1, transition: { duration: 0.15 } },
         exit: { opacity: 0, transition: { duration: 0.1 } },
       }
     : {
-        hidden: { opacity: 0, scale: 0.92, y: 36 },
-        visible: {
-          opacity: 1,
-          scale: 1,
-          y: 0,
-          transition: {
-            type: 'spring',
-            damping: 28,
-            stiffness: 280,
-            mass: 0.9,
-            delay: 0.22, // Allows visitor to appreciate the 3D camera zoom before panel appears
-          },
-        },
-        exit: {
-          opacity: 0,
-          scale: 0.95,
-          y: 20,
-          transition: {
-            duration: 0.16,
-            ease: [0.32, 0, 0.67, 0],
-          },
-        },
+        hidden: isMobile
+          ? { opacity: 0, y: 30 }
+          : { opacity: 0, scale: 0.94 },
+        visible: isMobile
+          ? {
+              opacity: 1,
+              y: 0,
+              transition: { type: 'spring', damping: 25, stiffness: 280 },
+            }
+          : {
+              opacity: 1,
+              scale: 1,
+              transition: {
+                type: 'spring',
+                damping: 24,
+                stiffness: 280,
+                mass: 0.85,
+              },
+            },
+        exit: isMobile
+          ? { opacity: 0, y: 20, transition: { duration: 0.14 } }
+          : { opacity: 0, scale: 0.96, transition: { duration: 0.14 } },
       };
 
   return (
     <AnimatePresence>
-      {isOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 md:p-6 overflow-hidden pointer-events-auto"
-          role="presentation"
-        >
-          {/* Backdrop with soft blur revealing the focused 3D item in the background */}
-          <motion.div
-            className="absolute inset-0 bg-slate-950/70 backdrop-blur-md"
-            variants={backdropVariants}
-            initial="hidden"
-            animate="visible"
-            exit="exit"
-            onClick={onClose}
-            aria-hidden="true"
-          />
+      {isVisible && (
+        <>
+          {/* SVG Leader Line and Pulsing Dot (Desktop only) */}
+          {!isMobile && anchor && (
+            <motion.svg
+              key="leader-line"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: shouldReduceMotion ? 0.1 : 0.2 }}
+              className="fixed inset-0 pointer-events-none z-30 w-full h-full"
+            >
+              <defs>
+                <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+                  <feGaussianBlur stdDeviation="2" result="blur" />
+                  <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                </filter>
+              </defs>
 
-          {/* Dialog Container */}
-          <motion.div
-            ref={modalRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="panel-title"
-            tabIndex={-1}
-            variants={modalVariants}
-            initial="hidden"
-            animate="visible"
-            exit="exit"
-            className="relative w-full sm:max-w-xl md:max-w-2xl max-h-[88vh] sm:max-h-[85vh] flex flex-col bg-slate-900/95 text-slate-100 rounded-t-3xl sm:rounded-2xl border border-slate-700/60 shadow-2xl shadow-black/90 overflow-hidden outline-none ring-1 ring-white/10"
+              {/* Connecting leader line from object to card edge */}
+              <line
+                x1={ox}
+                y1={oy}
+                x2={attachX}
+                y2={attachY}
+                stroke="#f59e0b"
+                strokeWidth="1.5"
+                strokeOpacity="0.7"
+                strokeDasharray="4 3"
+              />
+
+              {/* Card edge connection point dot */}
+              <circle cx={attachX} cy={attachY} r="2.5" fill="#f59e0b" />
+
+              {/* Pulsing Dot on 3D object */}
+              {!shouldReduceMotion && (
+                <circle
+                  cx={ox}
+                  cy={oy}
+                  r="8"
+                  fill="none"
+                  stroke="#fbbf24"
+                  strokeWidth="1.5"
+                  className="animate-ping"
+                  style={{ transformOrigin: `${ox}px ${oy}px` }}
+                />
+              )}
+              <circle
+                cx={ox}
+                cy={oy}
+                r="3.5"
+                fill="#fbbf24"
+                stroke="#18181b"
+                strokeWidth="1"
+                filter="url(#glow)"
+              />
+            </motion.svg>
+          )}
+
+          {/* Floating Card Container */}
+          <div
+            className={`fixed z-40 pointer-events-none ${
+              isMobile
+                ? 'inset-x-3 bottom-3 flex justify-center'
+                : 'inset-0'
+            }`}
           >
-            {/* Top Accent Gradient Bar */}
-            <div className="h-1 w-full bg-gradient-to-r from-amber-500/80 via-indigo-500/80 to-emerald-500/80" />
+            <motion.div
+              ref={cardRef}
+              role="dialog"
+              aria-labelledby="card-title"
+              tabIndex={-1}
+              variants={cardVariants}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              style={
+                isMobile
+                  ? {
+                      width: '100%',
+                      maxWidth: '480px',
+                      maxHeight: '45vh',
+                    }
+                  : {
+                      position: 'absolute',
+                      left: `${cardX}px`,
+                      top: `${cardY}px`,
+                      width: `${cardWidth}px`,
+                      maxHeight: '70vh',
+                    }
+              }
+              className="pointer-events-auto flex flex-col bg-slate-900/85 backdrop-blur-md text-slate-100 rounded-2xl border border-slate-700/60 shadow-2xl shadow-black/80 overflow-hidden outline-none ring-1 ring-white/10"
+            >
+              {/* Subtle top accent gradient */}
+              <div className="h-1 w-full bg-gradient-to-r from-amber-500/80 via-indigo-500/80 to-emerald-500/80 shrink-0" />
 
-            {/* Cozy Warm Ambient Glow at Header */}
-            <div className="absolute -top-16 left-1/2 -translate-x-1/2 w-72 h-28 bg-amber-500/15 blur-3xl pointer-events-none rounded-full" />
-
-            {/* Header */}
-            <div className="relative flex items-center justify-between px-6 pt-5 pb-4 border-b border-slate-800/80 bg-slate-900/60 z-10">
-              <div className="flex flex-col gap-0.5 pr-4">
-                <div className="flex items-center gap-2.5">
+              {/* Card Header */}
+              <div className="relative flex items-center justify-between px-4 py-3 border-b border-slate-800/80 bg-slate-900/50 shrink-0">
+                <div className="flex items-center gap-2 min-w-0 pr-2">
                   <h2
-                    id="panel-title"
-                    className="text-lg sm:text-xl font-bold tracking-tight text-slate-100 font-sans"
+                    id="card-title"
+                    className="text-sm sm:text-base font-bold tracking-tight text-slate-100 truncate"
                   >
                     {title}
                   </h2>
                   {badge && (
-                    <span className="text-[11px] font-medium font-mono px-2.5 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300">
+                    <span className="shrink-0 text-[10px] font-mono font-medium px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300">
                       {badge}
                     </span>
                   )}
                 </div>
-                {subtitle && (
-                  <p className="text-xs sm:text-sm text-slate-400 leading-snug">
-                    {subtitle}
-                  </p>
-                )}
+
+                {/* Close Button */}
+                <button
+                  type="button"
+                  onClick={onClose}
+                  aria-label="Close card"
+                  className="shrink-0 p-1.5 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800/80 transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus:outline-none"
+                >
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    strokeWidth="2.2"
+                    stroke="currentColor"
+                    aria-hidden="true"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
               </div>
 
-              {/* Close Button with Visible Focus Ring */}
-              <button
-                type="button"
-                onClick={onClose}
-                aria-label="Close panel"
-                className="shrink-0 p-2 rounded-xl text-slate-400 hover:text-slate-100 hover:bg-slate-800/80 transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 focus:outline-none"
-              >
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  strokeWidth="2"
-                  stroke="currentColor"
-                  aria-hidden="true"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
+              {/* Subtitle if provided */}
+              {subtitle && (
+                <div className="px-4 py-1.5 bg-slate-950/30 border-b border-slate-800/50 shrink-0">
+                  <p className="text-xs text-slate-400 leading-snug truncate">
+                    {subtitle}
+                  </p>
+                </div>
+              )}
 
-            {/* Scrollable Content Area */}
-            <div className="relative flex-1 overflow-y-auto px-6 py-5 overscroll-contain text-slate-200 focus-visible:ring-2 focus-visible:ring-amber-400/50 focus:outline-none">
-              {children}
-            </div>
-
-            {/* Bottom Subtle Gradient Indicator */}
-            <div className="h-2 w-full bg-gradient-to-t from-slate-900 to-transparent pointer-events-none" />
-          </motion.div>
-        </div>
+              {/* Scrollable Body Content */}
+              <div className="relative flex-1 overflow-y-auto px-4 py-3.5 overscroll-contain text-slate-200 focus-visible:ring-1 focus-visible:ring-amber-400/40 focus:outline-none">
+                {children}
+              </div>
+            </motion.div>
+          </div>
+        </>
       )}
     </AnimatePresence>
   );

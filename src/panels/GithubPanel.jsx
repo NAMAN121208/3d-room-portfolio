@@ -35,6 +35,7 @@ export default function GithubPanel({
   title,
   githubData = null, // Allows injecting mock data directly for tests and dev preview
   fetchUrl = '/api/github',
+  anchor = null,
 }) {
   const panel = data?.panel || data;
   const displayTitle = title || data?.title || 'Coding & Skills';
@@ -95,11 +96,12 @@ export default function GithubPanel({
       onClose={onClose}
       title={displayTitle}
       badge="Monitor & GitHub"
+      anchor={anchor}
     >
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-3">
         {/* Blurb Intro from content.js */}
         {blurb && (
-          <p className="text-sm sm:text-base text-slate-300 leading-relaxed font-sans bg-slate-800/40 border border-slate-750/60 rounded-xl p-4">
+          <p className="text-sm sm:text-base text-slate-300 leading-relaxed font-sans bg-slate-800/40 border border-slate-750/60 rounded-lg p-2.5">
             {blurb}
           </p>
         )}
