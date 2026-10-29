@@ -5,7 +5,6 @@
 // - public/models/props/headphones.glb (JBL headphones on custom stand)
 // - public/models/props/sketchbook.glb (open sketchbook on coffee table)
 // - public/models/props/football.glb (cleats on floor near door + patterned football sphere)
-// - public/models/props/jersey.glb (framed jersey on wall)
 
 import React, { useEffect, useMemo } from 'react';
 import * as THREE from 'three';
@@ -19,19 +18,11 @@ import { useGLTF } from '@react-three/drei';
 export const PROP_PLACEMENTS = {
   headphones: {
     // Left end of desk: x=-2.60, z=-1.90, desk top y=1.24
-    // Sits in front of left monitor, left of keyboard (x=-2.47), in front of speaker (z=-2.18)
+    // Sits in front of left monitor, left of keyboard (x=-2.47), clear of speaker (z=-2.18)
     position: [-2.60, 1.24, -1.90],
-    rotationY: 0.65, // angled towards +x, +z to face isometric camera
-    scale: 0.046,    // total height ~0.47 including stand (target ~0.5, footprint <= 0.28)
-    stand: {
-      baseRadius: 0.08,
-      baseHeight: 0.015,
-      poleRadius: 0.009,
-      poleHeight: 0.44,
-      color: '#27272a',
-      metalness: 0.8,
-      roughness: 0.25,
-    },
+    rotationY: 0.75, // angled towards camera (+x, +z)
+    scale: 1.20,     // realistic size: ~0.20m wide x ~0.23m high, sits flush on desk top
+    modelOffset: [0, 0, 0],
   },
   sketchbook: {
     // Coffee table center: x=0.60, z=1.30, table top y=0.56 (table spans x: 0.26..1.04, z: 0.89..1.87)
@@ -54,12 +45,6 @@ export const PROP_PLACEMENTS = {
       radius: 0.175, // 0.35m diameter
     },
   },
-  jersey: {
-    // Preserved wall mount: back wall at [2.40, 2.40, -2.90]
-    position: [2.40, 2.40, -2.90],
-    rotationY: 0,
-    scale: 0.85,
-  },
 };
 
 export default function Room({ onSelectObject, hoveredObject, onHoverObject }) {
@@ -68,13 +53,11 @@ export default function Room({ onSelectObject, hoveredObject, onHoverObject }) {
   const { scene: footballRaw } = useGLTF('/models/props/football.glb');
   const { scene: headphonesRaw } = useGLTF('/models/props/headphones.glb');
   const { scene: sketchbookRaw } = useGLTF('/models/props/sketchbook.glb');
-  const { scene: jerseyRaw } = useGLTF('/models/props/jersey.glb');
 
   // Clone scenes so each instance retains independent transforms and state
   const footballScene = useMemo(() => footballRaw.clone(true), [footballRaw]);
   const headphonesScene = useMemo(() => headphonesRaw.clone(true), [headphonesRaw]);
   const sketchbookScene = useMemo(() => sketchbookRaw.clone(true), [sketchbookRaw]);
-  const jerseyScene = useMemo(() => jerseyRaw.clone(true), [jerseyRaw]);
 
   // Procedural classic soccer ball texture
   const footballTexture = useMemo(() => {
@@ -119,7 +102,7 @@ export default function Room({ onSelectObject, hoveredObject, onHoverObject }) {
 
   // Enable shadow casting and receiving across all meshes in the scene
   useEffect(() => {
-    [roomScene, footballScene, headphonesScene, sketchbookScene, jerseyScene].forEach((scene) => {
+    [roomScene, footballScene, headphonesScene, sketchbookScene].forEach((scene) => {
       scene?.traverse((child) => {
         if (child.isMesh) {
           child.castShadow = true;
@@ -127,7 +110,7 @@ export default function Room({ onSelectObject, hoveredObject, onHoverObject }) {
         }
       });
     });
-  }, [roomScene, footballScene, headphonesScene, sketchbookScene, jerseyScene]);
+  }, [roomScene, footballScene, headphonesScene, sketchbookScene]);
 
   // Helper to attach pointer cursor and click handling to interactive prop targets
   const getInteractiveProps = (id) => ({
@@ -191,77 +174,13 @@ export default function Room({ onSelectObject, hoveredObject, onHoverObject }) {
         onClick={handleRoomClick}
       />
 
-      {/* 2. HEADPHONES (on stand at left end of desk) */}
+      {/* 2. HEADPHONES (on desk top at left end of desk) */}
       <group
         name="Headphones"
         position={PROP_PLACEMENTS.headphones.position}
         rotation={[0, PROP_PLACEMENTS.headphones.rotationY, 0]}
         {...getInteractiveProps('headphones')}
       >
-        {/* Minimalist Stand Base */}
-        <mesh
-          position={[0, PROP_PLACEMENTS.headphones.stand.baseHeight / 2, 0]}
-          castShadow
-          receiveShadow
-        >
-          <cylinderGeometry
-            args={[
-              PROP_PLACEMENTS.headphones.stand.baseRadius,
-              PROP_PLACEMENTS.headphones.stand.baseRadius * 1.05,
-              PROP_PLACEMENTS.headphones.stand.baseHeight,
-              24,
-            ]}
-          />
-          <meshStandardMaterial
-            color={PROP_PLACEMENTS.headphones.stand.color}
-            metalness={PROP_PLACEMENTS.headphones.stand.metalness}
-            roughness={PROP_PLACEMENTS.headphones.stand.roughness}
-          />
-        </mesh>
-
-        {/* Stand Vertical Stem */}
-        <mesh
-          position={[
-            0,
-            PROP_PLACEMENTS.headphones.stand.poleHeight / 2 + PROP_PLACEMENTS.headphones.stand.baseHeight,
-            0,
-          ]}
-          castShadow
-        >
-          <cylinderGeometry
-            args={[
-              PROP_PLACEMENTS.headphones.stand.poleRadius,
-              PROP_PLACEMENTS.headphones.stand.poleRadius,
-              PROP_PLACEMENTS.headphones.stand.poleHeight,
-              16,
-            ]}
-          />
-          <meshStandardMaterial
-            color={PROP_PLACEMENTS.headphones.stand.color}
-            metalness={PROP_PLACEMENTS.headphones.stand.metalness}
-            roughness={PROP_PLACEMENTS.headphones.stand.roughness}
-          />
-        </mesh>
-
-        {/* Stand Top Cradle Crossbar */}
-        <mesh
-          position={[
-            0,
-            PROP_PLACEMENTS.headphones.stand.poleHeight + PROP_PLACEMENTS.headphones.stand.baseHeight,
-            0,
-          ]}
-          rotation={[0, 0, Math.PI / 2]}
-          castShadow
-        >
-          <cylinderGeometry args={[0.012, 0.012, 0.12, 16]} />
-          <meshStandardMaterial
-            color={PROP_PLACEMENTS.headphones.stand.color}
-            metalness={PROP_PLACEMENTS.headphones.stand.metalness}
-            roughness={PROP_PLACEMENTS.headphones.stand.roughness}
-          />
-        </mesh>
-
-        {/* JBL Headphones Model hanging on stand */}
         <primitive
           object={headphonesScene}
           scale={[
@@ -269,7 +188,7 @@ export default function Room({ onSelectObject, hoveredObject, onHoverObject }) {
             PROP_PLACEMENTS.headphones.scale,
             PROP_PLACEMENTS.headphones.scale,
           ]}
-          position={[0, 0.27, 0]}
+          position={PROP_PLACEMENTS.headphones.modelOffset}
         />
       </group>
 
@@ -322,23 +241,6 @@ export default function Room({ onSelectObject, hoveredObject, onHoverObject }) {
           />
         </mesh>
       </group>
-
-      {/* 5. JERSEY (Framed wall kit) */}
-      <group
-        name="Jersey"
-        position={PROP_PLACEMENTS.jersey.position}
-        rotation={[0, PROP_PLACEMENTS.jersey.rotationY, 0]}
-        {...getInteractiveProps('jersey')}
-      >
-        <primitive
-          object={jerseyScene}
-          scale={[
-            PROP_PLACEMENTS.jersey.scale,
-            PROP_PLACEMENTS.jersey.scale,
-            PROP_PLACEMENTS.jersey.scale,
-          ]}
-        />
-      </group>
     </group>
   );
 }
@@ -348,4 +250,3 @@ useGLTF.preload('/models/room.glb');
 useGLTF.preload('/models/props/football.glb');
 useGLTF.preload('/models/props/headphones.glb');
 useGLTF.preload('/models/props/sketchbook.glb');
-useGLTF.preload('/models/props/jersey.glb');

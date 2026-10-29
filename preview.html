@@ -218,37 +218,16 @@
       checkAllLoaded();
     });
 
-    // 2. Headphones on Stand
+    // 2. Headphones on Desk Top
     loader.load('/models/props/headphones.glb', (gltf) => {
       const group = new THREE.Group();
       group.name = 'Headphones';
       group.position.set(-2.60, 1.24, -1.90);
-      group.rotation.set(0, 0.65, 0);
-
-      const baseGeo = new THREE.CylinderGeometry(0.08, 0.085, 0.015, 24);
-      const standMat = new THREE.MeshStandardMaterial({ color: '#27272a', metalness: 0.8, roughness: 0.25 });
-      const baseMesh = new THREE.Mesh(baseGeo, standMat);
-      baseMesh.position.set(0, 0.0075, 0);
-      baseMesh.castShadow = true;
-      baseMesh.receiveShadow = true;
-      group.add(baseMesh);
-
-      const stemGeo = new THREE.CylinderGeometry(0.009, 0.009, 0.44, 16);
-      const stemMesh = new THREE.Mesh(stemGeo, standMat);
-      stemMesh.position.set(0, 0.23, 0);
-      stemMesh.castShadow = true;
-      group.add(stemMesh);
-
-      const cradleGeo = new THREE.CylinderGeometry(0.012, 0.012, 0.12, 16);
-      const cradleMesh = new THREE.Mesh(cradleGeo, standMat);
-      cradleMesh.rotation.set(0, 0, Math.PI / 2);
-      cradleMesh.position.set(0, 0.45, 0);
-      cradleMesh.castShadow = true;
-      group.add(cradleMesh);
+      group.rotation.set(0, 0.75, 0);
 
       const hp = gltf.scene;
-      hp.scale.set(0.046, 0.046, 0.046);
-      hp.position.set(0, 0.27, 0);
+      hp.scale.set(1.20, 1.20, 1.20);
+      hp.position.set(0, 0, 0);
       setupShadows(hp);
       group.add(hp);
 
