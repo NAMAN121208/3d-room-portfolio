@@ -5,11 +5,11 @@
 // - public/models/props/headphones.glb (JBL headphones on custom stand)
 // - public/models/props/sketchbook.glb (open sketchbook on coffee table)
 // - public/models/props/football.glb (cleats on floor near door + patterned football sphere)
-// - public/models/props/jersey.glb (framed jersey on wall)
 
 import React, { useEffect, useMemo } from 'react';
 import * as THREE from 'three';
 import { useGLTF } from '@react-three/drei';
+import { useObjectPointer } from '../hooks/useObjectPointer';
 
 // ============================================================================
 // PROP PLACEMENTS CONFIGURATION
@@ -54,27 +54,20 @@ export const PROP_PLACEMENTS = {
       radius: 0.175, // 0.35m diameter
     },
   },
-  jersey: {
-    // Preserved wall mount: back wall at [2.40, 2.40, -2.90]
-    position: [2.40, 2.40, -2.90],
-    rotationY: 0,
-    scale: 0.85,
-  },
 };
 
-export default function Room({ onSelectObject, hoveredObject, onHoverObject }) {
+export default function Room() {
+  const pointerHandlers = useObjectPointer();
   // Load room model and prop models
   const { scene: roomScene } = useGLTF('/models/room.glb');
   const { scene: footballRaw } = useGLTF('/models/props/football.glb');
   const { scene: headphonesRaw } = useGLTF('/models/props/headphones.glb');
   const { scene: sketchbookRaw } = useGLTF('/models/props/sketchbook.glb');
-  const { scene: jerseyRaw } = useGLTF('/models/props/jersey.glb');
 
   // Clone scenes so each instance retains independent transforms and state
   const footballScene = useMemo(() => footballRaw.clone(true), [footballRaw]);
   const headphonesScene = useMemo(() => headphonesRaw.clone(true), [headphonesRaw]);
   const sketchbookScene = useMemo(() => sketchbookRaw.clone(true), [sketchbookRaw]);
-  const jerseyScene = useMemo(() => jerseyRaw.clone(true), [jerseyRaw]);
 
   // Procedural classic soccer ball texture
   const footballTexture = useMemo(() => {
@@ -119,7 +112,7 @@ export default function Room({ onSelectObject, hoveredObject, onHoverObject }) {
 
   // Enable shadow casting and receiving across all meshes in the scene
   useEffect(() => {
-    [roomScene, footballScene, headphonesScene, sketchbookScene, jerseyScene].forEach((scene) => {
+    [roomScene, footballScene, headphonesScene, sketchbookScene].forEach((scene) => {
       scene?.traverse((child) => {
         if (child.isMesh) {
           child.castShadow = true;
@@ -127,68 +120,13 @@ export default function Room({ onSelectObject, hoveredObject, onHoverObject }) {
         }
       });
     });
-  }, [roomScene, footballScene, headphonesScene, sketchbookScene, jerseyScene]);
-
-  // Helper to attach pointer cursor and click handling to interactive prop targets
-  const getInteractiveProps = (id) => ({
-    onPointerOver: (e) => {
-      e.stopPropagation();
-      onHoverObject?.(id);
-      document.body.style.cursor = 'pointer';
-    },
-    onPointerOut: (e) => {
-      e.stopPropagation();
-      onHoverObject?.(null);
-      document.body.style.cursor = 'auto';
-    },
-    onClick: (e) => {
-      e.stopPropagation();
-      onSelectObject?.(id);
-    },
-  });
-
-  // Handle pointer interactions on the room model's embedded groups (Monitor, Laptop, Bookshelf)
-  const handleRoomPointerOver = (e) => {
-    e.stopPropagation();
-    let curr = e.object;
-    while (curr && curr !== roomScene) {
-      const lower = curr.name?.toLowerCase();
-      if (lower === 'monitor' || lower === 'laptop' || lower === 'bookshelf') {
-        onHoverObject?.(lower);
-        document.body.style.cursor = 'pointer';
-        return;
-      }
-      curr = curr.parent;
-    }
-  };
-
-  const handleRoomPointerOut = (e) => {
-    e.stopPropagation();
-    onHoverObject?.(null);
-    document.body.style.cursor = 'auto';
-  };
-
-  const handleRoomClick = (e) => {
-    e.stopPropagation();
-    let curr = e.object;
-    while (curr && curr !== roomScene) {
-      const lower = curr.name?.toLowerCase();
-      if (lower === 'monitor' || lower === 'laptop' || lower === 'bookshelf') {
-        onSelectObject?.(lower);
-        return;
-      }
-      curr = curr.parent;
-    }
-  };
+  }, [roomScene, footballScene, headphonesScene, sketchbookScene]);
 
   return (
-    <group position={[0, 0, 0]}>
+    <group position={[0, 0, 0]} {...pointerHandlers}>
       {/* 1. ROOM MODEL (architecture, desk, sofa, TV, and named groups Monitor, Laptop, Bookshelf) */}
       <primitive
         object={roomScene}
-        onPointerOver={handleRoomPointerOver}
-        onPointerOut={handleRoomPointerOut}
-        onClick={handleRoomClick}
       />
 
       {/* 2. HEADPHONES (on stand at left end of desk) */}
@@ -196,7 +134,6 @@ export default function Room({ onSelectObject, hoveredObject, onHoverObject }) {
         name="Headphones"
         position={PROP_PLACEMENTS.headphones.position}
         rotation={[0, PROP_PLACEMENTS.headphones.rotationY, 0]}
-        {...getInteractiveProps('headphones')}
       >
         {/* Minimalist Stand Base */}
         <mesh
@@ -278,7 +215,6 @@ export default function Room({ onSelectObject, hoveredObject, onHoverObject }) {
         name="Sketchbook"
         position={PROP_PLACEMENTS.sketchbook.position}
         rotation={[0, PROP_PLACEMENTS.sketchbook.rotationY, 0]}
-        {...getInteractiveProps('sketchbook')}
       >
         <primitive
           object={sketchbookScene}
@@ -290,7 +226,6 @@ export default function Room({ onSelectObject, hoveredObject, onHoverObject }) {
       {/* 4. FOOTBALL (Cleats + Ball on floor near door) */}
       <group
         name="Football"
-        {...getInteractiveProps('football')}
       >
         {/* Boots / Cleats */}
         <group
@@ -323,22 +258,6 @@ export default function Room({ onSelectObject, hoveredObject, onHoverObject }) {
         </mesh>
       </group>
 
-      {/* 5. JERSEY (Framed wall kit) */}
-      <group
-        name="Jersey"
-        position={PROP_PLACEMENTS.jersey.position}
-        rotation={[0, PROP_PLACEMENTS.jersey.rotationY, 0]}
-        {...getInteractiveProps('jersey')}
-      >
-        <primitive
-          object={jerseyScene}
-          scale={[
-            PROP_PLACEMENTS.jersey.scale,
-            PROP_PLACEMENTS.jersey.scale,
-            PROP_PLACEMENTS.jersey.scale,
-          ]}
-        />
-      </group>
     </group>
   );
 }
@@ -348,4 +267,3 @@ useGLTF.preload('/models/room.glb');
 useGLTF.preload('/models/props/football.glb');
 useGLTF.preload('/models/props/headphones.glb');
 useGLTF.preload('/models/props/sketchbook.glb');
-useGLTF.preload('/models/props/jersey.glb');

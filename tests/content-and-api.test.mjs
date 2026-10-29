@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
-import { stops } from "../src/content.js";
+import { objects } from "../src/content.js";
 import { validateContent, validateSceneMeshes } from "../src/utils/validateContent.js";
 import github from "../api/github.js";
 import spotify from "../api/spotify.js";
@@ -30,23 +30,24 @@ const emptySpotify = (body) => {
   assert.ok(Number.isFinite(Date.parse(body.fetchedAt)));
 };
 
-test("content has the eight ordered stops and validates", () => {
-  assert.deepEqual(stops.map((s) => s.id), ["intro", "monitor", "laptop", "headphones", "sketchbook", "football", "jersey", "bookshelf"]);
-  assert.deepEqual(validateContent(stops, () => assert.fail("Unexpected warning")), []);
-  assert.ok(stops[0].title.includes("<name>"));
+test("content has the six interactive objects and validates", () => {
+  assert.deepEqual(objects.map((s) => s.id), ["monitor", "laptop", "headphones", "sketchbook", "football", "bookshelf"]);
+  assert.deepEqual(validateContent(objects, () => assert.fail("Unexpected warning")), []);
+  assert.ok(objects[0].panel.blurb.includes("<name>"));
+  assert.ok(objects.find((object) => object.id === "football").panel.story);
 });
 test("validation catches missing fields, duplicates, bad vectors, and missing model names", () => {
-  const broken = structuredClone(stops);
+  const broken = structuredClone(objects);
   delete broken[1].title;
   broken[2].id = "monitor";
-  broken[3].lookAt = [NaN, 1, 2];
+  broken[3].focus.lookAt = [NaN, 1, 2];
   assert.ok(validateContent(broken, () => {}).length >= 3);
   const warnings = [];
   const scene = { getObjectByName: (name) => name === "Monitor" ? {} : undefined };
-  const missing = validateSceneMeshes(stops, scene, (message) => warnings.push(message));
-  assert.equal(missing.length, 6);
+  const missing = validateSceneMeshes(objects, scene, (message) => warnings.push(message));
+  assert.equal(missing.length, 5);
   assert.ok(warnings[0].includes('"Laptop"'));
-  assert.deepEqual(validateSceneMeshes(stops, { getObjectByName: () => ({}) }), []);
+  assert.deepEqual(validateSceneMeshes(objects, { getObjectByName: () => ({}) }), []);
 });
 test("missing credentials return contract-shaped empty data without network calls", async (t) => {
   setup(t, () => assert.fail("No request expected"));

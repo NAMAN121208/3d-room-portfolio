@@ -5,10 +5,24 @@ Use Node.js 22 or newer. No additional dependencies are needed for these files.
 ## Content
 
 Edit `src/content.js` to replace `<name>`, fill in the panel text and lists, and tune
-`cameraPosition` / `lookAt` once the room exists. The seven model object names must
-match `meshName` exactly. Call `validateContent(stops)` during development and
-`validateSceneMeshes(stops, gltf.scene)` after loading the model. Both helpers
+`focus.cameraPosition` / `focus.lookAt` once the room exists. The six model object names must
+match `meshName` exactly. Call `validateContent(objects)` during development and
+`validateSceneMeshes(objects, gltf.scene)` after loading the model. Both helpers
 return lists of problems and log clear warnings; they do not render UI.
+
+## Exploration and focus
+
+Camera defaults, angle/zoom limits, framing fractions, and tween durations are at
+the top of `src/scene/CameraRig.jsx`. `INTERACTION_MODE` selects `drag` or `follow`.
+Open `?debug=1` to copy the current camera position and target into an object's
+`focus` entry. Desktop framing targets 87.5% of viewport height; narrow screens
+fit the room's width so it remains visible.
+
+Inside `FocusProvider`, `useFocus()` exposes `status`, `objectId`, `focus(id)`,
+and `close()`. Only show panels when status is `focused`; the camera signals
+`arrived(id)` and `returned()` after movement. Closing also works during a glide.
+Additional object clicks outside `exploring` are ignored. The headphones use the
+existing empty PanelShell until the Spotify panel is implemented.
 
 ## Environment and GitHub
 

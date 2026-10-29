@@ -6,9 +6,9 @@ Read this file fully before making any change. It is the shared source of truth 
 
 ## 1. Project goal
 
-A personal portfolio website shaped like a **3D isometric room**. As the visitor scrolls, the camera glides from object to object. Each object represents a part of the owner's life. Clicking an object zooms in and opens a detail panel.
+A personal portfolio website shaped like a **3D isometric room**. The viewer freely rotates and zooms within limits on a fixed full-screen canvas. Each object represents a part of the owner's life. Clicking an object zooms in and opens a detail panel.
 
-**Secondary goal: learning.** The owner is using this project to learn frontend animation, scroll effects, and 3D on the web through "vibe coding". So:
+**Secondary goal: learning.** The owner is using this project to learn frontend animation, camera controls, and 3D on the web through "vibe coding". So:
 - Prefer clear, readable code over clever code.
 - Add short comments explaining *why* for non-obvious 3D, camera, and animation logic.
 - When finishing a task, give a 3 to 5 line plain-English explanation of what was built and which values the owner can tweak to experiment.
@@ -22,8 +22,8 @@ A personal portfolio website shaped like a **3D isometric room**. As the visitor
 | Build | Vite + React |
 | Styling | Tailwind CSS |
 | 3D | Three.js via `@react-three/fiber` (R3F) + `@react-three/drei` |
-| Scroll animation | GSAP + ScrollTrigger |
-| Smooth scroll | Lenis |
+| Camera tweens | GSAP |
+| Free exploration | drei OrbitControls |
 | UI / panel animation | Framer Motion |
 | Backend | Serverless functions in `/api` (Vercel format) |
 | Hosting | Vercel |
@@ -31,22 +31,18 @@ A personal portfolio website shaped like a **3D isometric room**. As the visitor
 
 ---
 
-## 3. Scope: 7 interactive objects
+## 3. Scope: 6 interactive objects
 
-| Scroll stop | Object | Section | Integration |
-|---|---|---|---|
-| 1 | Whole room (wide shot) | Intro and name | none |
-| 2 | Monitor | Coding and skills | **GitHub** |
-| 3 | Laptop | Games played | none |
-| 4 | Headphones (on stand) | Music | **Spotify** |
-| 5 | Sketchbook (on coffee table) | Art gallery | none |
-| 6 | Football and boots | Football | none |
-| 7 | Jersey (on wall) | Football story | none |
-| 8 | Bookshelf | Reading | none |
+| Object / meshName | Section | Integration |
+|---|---|---|
+| Monitor | Coding and skills | GitHub |
+| Laptop | Games played | none |
+| Headphones | Music | Spotify |
+| Sketchbook | Art gallery | none |
+| Football | Football and football story | none |
+| Bookshelf | Reading | none |
 
-Stop 1 is the intro wide shot. Stops 2 to 8 are the seven objects. Order is chosen to keep camera moves short: desk items first, then coffee table sketchbook, then football items, then the shelf.
-
-**Out of scope for now:** extra objects (plant, lamp, cat, camera, console), sound design, day/night toggle. Do not add them unless asked.
+Visitors choose objects freely; there is no intro stop or ordered tour. Do not add new interactive objects, sound design, or day/night modes unless asked.
 
 ---
 
@@ -55,29 +51,17 @@ Stop 1 is the intro wide shot. Stops 2 to 8 are the seven objects. Order is chos
 All text, links, and per-object config live in `src/content.js`. Components read from it. **Never hardcode portfolio text inside 3D or panel components.**
 
 ```js
-// src/content.js
-export const stops = [
-  {
-    id: "intro",
-    meshName: null,                     // wide shot, no clickable mesh
-    title: "Hi, I'm <name>",
-    cameraPosition: [10, 8, 10],        // x, y, z
-    lookAt: [0, 1, 0],
-    panel: null,
-  },
+export const objects = [
   {
     id: "monitor",
-    meshName: "Monitor",                // MUST match the mesh name in the .glb exactly
+    meshName: "Monitor", // Exact named ancestor group in the model
     title: "Coding & Skills",
-    cameraPosition: [2, 2.5, 3],
-    lookAt: [0, 2, 0],
-    integration: "github",              // "github" | "spotify" | undefined
-    panel: {
-      blurb: "Short intro about my skills.",
-      skills: [{ name: "React", level: 4 }, { name: "Three.js", level: 2 }],
-    },
+    integration: "github", // "github" | "spotify" | null
+    focus: { cameraPosition: [2, 2.5, 3], lookAt: [0, 2, 0] },
+    panel: { blurb: "Add <name>'s coding journey.", skills: [] },
   },
-  // laptop, sketchbook, headphones, football, jersey, bookshelf follow the same shape
+  // laptop, headphones, sketchbook, football, bookshelf use the same shape.
+  // The football panel also has a story string.
 ];
 ```
 
@@ -99,7 +83,7 @@ Placeholder values above are starting points. The owner will tune camera numbers
   content.js          # all portfolio content (see section 4)
   /scene
     Room.jsx          # loads the model, wires hover/click per mesh
-    CameraRig.jsx     # scroll progress -> camera position/lookAt
+    CameraRig.jsx     # free exploration and focus camera tweens
     Lights.jsx
   /panels
     PanelShell.jsx    # shared animated container
@@ -110,8 +94,8 @@ Placeholder values above are starting points. The owner will tune camera numbers
     FootballPanel.jsx
     ReadingPanel.jsx
   /hooks
-    useScrollProgress.js
-    useActiveStop.js
+    useFocus.js
+    focusReducer.js
   /ui
     Loader.jsx
     Cursor.jsx
@@ -124,17 +108,20 @@ AGENTS.md
 
 ## 6. Architecture rules
 
-1. **Scroll drives the camera.** A single scroll progress value (0 to 1) is mapped to the stops in `content.js`. `CameraRig` interpolates position and lookAt between adjacent stops with easing. Use Lenis for smoothing and GSAP ScrollTrigger to bind scroll to progress.
-2. **Click-to-zoom is a state machine**, not scattered booleans:
-   - `idle` (scroll controls the camera)
-   - `focused(objectId)` (camera locked to that object, panel open, scroll disabled)
-   - Closing the panel (button or Esc) returns to `idle` and restores the previous scroll position with no jump.
-3. **Hover feedback on every clickable mesh** (outline or glow plus pointer cursor), so visitors know what is interactive.
+1. **Free exploration drives the camera.** The page has no scrolling. OrbitControls provides bounded drag rotation and wheel/pinch zoom, with no panning. A single file contains defaults and limits. Optional follow mode eases toward the pointer instead of dragging. Reduced motion disables damping and follow movement.
+2. **Focus is a pure reducer state machine** exposed through useFocus:
+   - exploring: controls enabled
+   - focusing(objectId): save camera position/target, disable controls, GSAP tween to the object's focus view
+   - focused(objectId): panel opens after the tween completes
+   - returning: close/Esc hides the panel, restores the saved camera pose, then returns to exploring
+   - Ignore additional object clicks outside exploring. Reduced motion uses an immediate cut.
+   - Only resolve the first intersection, walking to the nearest ancestor matching meshName. Decor blocks targets behind it. Pointer travel over 4px is a drag, not a click.
+3. **Hover feedback on every clickable group** uses a pointer cursor and basic highlight. Clone materials before changing them; never mutate shared materials. Empty canvas uses a grab cursor.
 4. **Panels are HTML overlays**, not 3D text. The monitor's contents may use drei `<Html>` anchored to the screen mesh as a starting point.
 5. **Every external call needs a loading state and an error fallback.** The site must still look good if GitHub or Spotify is down.
 6. **Performance budget:** model under ~5 MB after compression, lazy load the scene, target 60fps on a mid-range laptop. Dispose of unused textures and geometries.
 7. **Mobile:** simpler fallback. Keep the 3D with reduced pixel ratio and no heavy effects, or show a 2D stacked layout if the frame rate is poor. Do not ship a layout that breaks on a phone.
-8. **Accessibility basics:** all panel content must be reachable by keyboard, have visible focus states, and respect `prefers-reduced-motion` (skip camera tweening and use fades instead).
+8. **Accessibility basics:** all panel content must be reachable by keyboard, have visible focus states, and respect `prefers-reduced-motion` (skip camera tweening and use immediate cuts).
 
 ---
 
@@ -207,7 +194,6 @@ Both tools write code in the same repo. **To avoid conflicts, each owns differen
 
 ### Antigravity owns: visuals and look-and-feel
 - Project scaffolding and Tailwind setup
-- Lenis smooth scroll setup
 - `src/panels/*` (layout, styling, animation)
 - `src/ui/*` (loader, cursor)
 - Lighting, colors, materials, hover glow, mood
@@ -215,12 +201,12 @@ Both tools write code in the same repo. **To avoid conflicts, each owns differen
 - Responsive and mobile layout checks (use the browser to verify visually)
 
 ### Codex owns: logic, data, and hardening
-- `src/scene/CameraRig.jsx` and scroll-to-camera mapping
+- `src/scene/CameraRig.jsx` and exploration/focus camera control
 - Click-to-zoom state machine and Esc/back handling
 - `src/content.js` schema and validation (warn when a `meshName` is missing from the model)
 - `/api/spotify`, `/api/github`, the Spotify token script, and caching
 - Performance work (gltf-transform compression, lazy loading, disposal)
-- Bug fixing (scroll/click conflicts, camera jumps at stop boundaries)
+- Bug fixing (drag/click conflicts, interrupted camera transitions)
 - Final code review of the other tool's work
 
 ### Shared rules
@@ -236,9 +222,9 @@ Both tools write code in the same repo. **To avoid conflicts, each owns differen
 
 | Phase | Task | Owner |
 |---|---|---|
-| 1 | Scaffold Vite + React + Tailwind + R3F, add Lenis | Antigravity |
-| 2 | Greybox room built from simple named boxes (Monitor, Laptop, Sketchbook, Headphones, Football, Jersey, Bookshelf) so work is not blocked on art | Antigravity |
-| 3 | `content.js` schema and `CameraRig` driven by scroll, 8 stops | Codex |
+| 1 | Scaffold Vite + React + Tailwind + R3F | Antigravity |
+| 2 | Greybox room built from simple named boxes (Monitor, Laptop, Headphones, Sketchbook, Football, Bookshelf) so work is not blocked on art | Antigravity |
+| 3 | `objects` content schema and bounded free exploration with `CameraRig` | Codex |
 | 4 | Hover highlight and click-to-zoom state machine, empty `PanelShell` | Codex (logic), Antigravity (shell styling) |
 | 5 | Panels: Games, Sketch gallery, Football, Reading (static content) | Antigravity |
 | 6 | `/api/github` + `GithubPanel` | Codex (API), Antigravity (panel) |
@@ -254,8 +240,8 @@ Finish and verify each phase before starting the next.
 ## 11. Model requirements (for the real room)
 
 - Format: `.glb`, compressed with `gltf-transform` (Draco or Meshopt, textures resized or converted to WebP/KTX2).
-- Each of the 7 objects must be a **separate, named mesh or group** matching `meshName` exactly.
-- Greybox first. The real model only replaces it once camera and click logic already work.
+- Each of the 6 objects must be a **separate, named mesh or group** matching `meshName` exactly.
+- The real room and props must be present before free-exploration work. Named groups: Monitor, Laptop, Headphones, Sketchbook, Football, Bookshelf.
 
 ---
 
@@ -274,5 +260,5 @@ Finish and verify each phase before starting the next.
 
 - Adding any new library not listed in section 2
 - Adding any object or feature outside section 3
-- Changing the scroll order or the state machine design
+- Changing the exploration controls or the state machine design
 - Anything involving credentials, tokens, or paid services

@@ -8,14 +8,13 @@
     "build": "vite build",
     "preview": "vite preview",
     "prepare:room": "node scripts/prepare-room.mjs",
-    "test": "node --test src/hooks/cameraPath.test.js tests/content-and-api.test.mjs tests/clickToZoom.test.mjs"
+    "test": "node --test tests/*.test.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^10.0.8",
     "@react-three/fiber": "^9.1.2",
     "framer-motion": "^12.4.7",
     "gsap": "^3.12.7",
-    "lenis": "^1.1.20",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "three": "^0.174.0"
